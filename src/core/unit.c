@@ -1529,7 +1529,7 @@ static int unit_add_mount_dependencies(Unit *u) {
                                         return r;
                                 changed = changed || r > 0;
 
-                                if (m->fragment_path) {
+                                if (m->fragment_path && !streq(m->id, "tmp.mount")) {
                                         r = unit_add_dependency(
                                                         u,
                                                         unit_mount_dependency_type_to_dependency_type(t),

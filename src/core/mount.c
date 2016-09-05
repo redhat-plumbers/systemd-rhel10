@@ -314,7 +314,7 @@ static int mount_add_mount_dependencies(Mount *m) {
                         if (r < 0)
                                 return r;
 
-                        if (UNIT(m)->fragment_path) {
+                        if (UNIT(m)->fragment_path && !streq(UNIT(m)->id, "tmp.mount")) {
                                 /* If we have fragment configuration, then make this dependency required/wanted */
                                 r = unit_add_dependency(
                                                 other,
