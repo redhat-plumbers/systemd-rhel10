@@ -8,6 +8,7 @@ rules = [
         [files('40-redhat-hotplug.rules',
                '40-redhat-s390.rules',
                '40-redhat.rules',
+               '40-elevator.rules',
                '60-autosuspend.rules',
                '60-block.rules',
                '60-cdrom_id.rules',
