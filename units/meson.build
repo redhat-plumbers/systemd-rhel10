@@ -771,10 +771,7 @@ units = [
         { 'file' : 'time-set.target' },
         { 'file' : 'time-sync.target' },
         { 'file' : 'timers.target' },
-        {
-          'file' : 'tmp.mount',
-          'symlinks' : ['local-fs.target.wants/'],
-        },
+        { 'file' : 'tmp.mount' },
         { 'file' : 'tpm2.target' },
         { 'file' : 'umount.target' },
         { 'file' : 'usb-gadget.target' },
