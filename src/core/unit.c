@@ -5914,7 +5914,7 @@ static int unit_log_leftover_process_start(const PidRef *pid, int sig, void *use
 
         /* During start we print a warning */
 
-        log_unit_warning(u,
+        log_unit_debug(u,
                          "Found left-over process " PID_FMT " (%s) in control group while starting unit. Ignoring.\n"
                          "This usually indicates unclean termination of a previous run, or service implementation deficiencies.",
                          pid->pid, strna(comm));
