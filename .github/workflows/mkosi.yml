@@ -70,7 +70,7 @@ jobs:
             release: "9"
 
     steps:
-    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633
+    - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b
     - uses: systemd/mkosi@22d212dcb229b553572578ef16c809f9a9961ee8
 
     # Freeing up disk space with rm -rf can take multiple minutes. Since we don't need the extra free space
