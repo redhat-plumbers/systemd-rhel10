@@ -6,9 +6,6 @@ name: Lint Code Base
 
 on:
   pull_request:
-    branches:
-      - main
-      - v[0-9]+-stable
 
 permissions:
   contents: read
