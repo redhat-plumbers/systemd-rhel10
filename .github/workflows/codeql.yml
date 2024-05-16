@@ -6,9 +6,6 @@ name: "CodeQL"
 
 on:
   pull_request:
-    branches:
-      - main
-      - v[0-9]+-stable
     paths:
       - '**/meson.build'
       - '.github/**/codeql*'
@@ -16,9 +13,6 @@ on:
       - 'test/**'
       - 'tools/**'
   push:
-    branches:
-      - main
-      - v[0-9]+-stable
 
 permissions:
   contents: read
