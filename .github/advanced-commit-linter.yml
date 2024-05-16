@@ -1,0 +1,17 @@
+policy:
+  cherry-pick:
+    upstream:
+      - github: systemd/systemd
+    exception:
+      note:
+        - 'rhel-only: (feature|bugfix|policy|doc|workaround|ci|test|other)'
+        - 'RHEL-only: (feature|bugfix|policy|doc|workaround|ci|test|other)'
+  tracker:
+    - keyword:
+        - 'Resolves: '
+        - 'Related: '
+        - 'Reverts: '
+      type: jira
+      issue-format:
+        - 'RHEL-\d+$'
+      url: 'https://issues.redhat.com/browse/'
