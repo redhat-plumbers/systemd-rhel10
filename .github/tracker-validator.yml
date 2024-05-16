@@ -1,0 +1,31 @@
+labels:
+  missing-tracker: tracker/missing
+  invalid-product: tracker/invalid-product
+  invalid-component: tracker/invalid-component
+  unapproved: tracker/unapproved
+products:
+  - Red Hat Enterprise Linux 10
+  - CentOS Stream 10
+  - rhel-10.0-beta
+  - rhel-10.0
+  - rhel-10.0.z
+  - rhel-10.1
+  - rhel-10.1.z
+  - rhel-10.2
+  - rhel-10.2.z
+  - rhel-10.3
+  - rhel-10.3.z
+  - rhel-10.4
+  - rhel-10.4.z
+  - rhel-10.5
+  - rhel-10.5.z
+  - rhel-10.6
+  - rhel-10.6.z
+  - rhel-10.7
+  - rhel-10.7.z
+  - rhel-10.8
+  - rhel-10.8.z
+  - rhel-10.9
+  - rhel-10.9.z
+  - rhel-10.10
+  - rhel-10.10.z
