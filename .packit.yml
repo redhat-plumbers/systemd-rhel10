@@ -21,26 +21,38 @@ actions:
     - "bash -ec 'git describe --tags --abbrev=0 | cut -b 2-'"
 
   post-upstream-clone:
-    # Use the Fedora Rawhide specfile
-    - git clone https://src.fedoraproject.org/rpms/systemd .packit_rpm --depth=1
-    - bash -c 'echo "%bcond upstream 1" > .packit_rpm/systemd.spec.new'
-    - bash -c 'echo "%define meson_extra_configure_options --werror" >> .packit_rpm/systemd.spec.new'
-    - bash -c 'cat .packit_rpm/systemd.spec >> .packit_rpm/systemd.spec.new'
-    - mv .packit_rpm/systemd.spec.new .packit_rpm/systemd.spec
+    # Use the CentOS Stream 10 specfile
+    - "git clone -b c10s https://gitlab.com/redhat/centos-stream/rpms/systemd.git .packit_rpm --depth=1"
+    # Drop the "sources" file so rebase-helper doesn't think we're a dist-git
+    - "rm -fv .packit_rpm/sources"
+    # Drop all patches, since they're already included in the tarball
+    - "sed -ri '/^Patch[0-9]+:/d' .packit_rpm/systemd.spec"
+    # Build the RPM with --werror. Even though --werror doesn't work in all
+    # cases (see [0]), we can't use -Dc_args=/-Dcpp_args= here because of the
+    # RPM hardening macros, that use $CFLAGS/$CPPFLAGS (see [1]).
+    #
+    # [0] https://github.com/mesonbuild/meson/issues/7360
+    # [1] https://github.com/systemd/systemd/pull/18908#issuecomment-792250110
+    - 'sed -i "/^CONFIGURE_OPTS=(/a--werror" .packit_rpm/systemd.spec'
+    # Ignore unpackaged standalone binaries
+    - "sed -i 's/assert False,.*/pass/' .packit_rpm/split-files.py"
+    # Temporarily add libarchive-devel build dep and libarchive runtime dep
+    # until the change propagates to Rawhide's specfile
+    - "sed -ri '0,/^BuildRequires: .+$/s//&\\nBuildRequires: libarchive-devel\\nRequires: libarchive/' .packit_rpm/systemd.spec"
 
+# Available targets can be listed via `copr-cli list-chroots`
 jobs:
 - job: copr_build
   trigger: pull_request
   targets:
-  - fedora-rawhide-aarch64
-  - fedora-rawhide-i386
-  - fedora-rawhide-ppc64le
-  - fedora-rawhide-s390x
-  - fedora-rawhide-x86_64
+  - centos-stream-10-aarch64
+  - centos-stream-10-ppc64le
+  - centos-stream-10-s390x
+  - centos-stream-10-x86_64
 
 - job: tests
   trigger: pull_request
   fmf_path: test/fmf
   tmt_plan: ci
   targets:
-  - fedora-rawhide-x86_64
+  - centos-stream-10-x86_64
