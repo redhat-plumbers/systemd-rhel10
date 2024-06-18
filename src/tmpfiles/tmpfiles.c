@@ -4213,6 +4213,7 @@ static int parse_argv(int argc, char *argv[]) {
                 ARG_IMAGE_POLICY,
                 ARG_REPLACE,
                 ARG_DRY_RUN,
+                ARG_DESTROY_DATA,
                 ARG_NO_PAGER,
         };
 
@@ -4236,10 +4237,18 @@ static int parse_argv(int argc, char *argv[]) {
                 { "replace",        required_argument,   NULL, ARG_REPLACE        },
                 { "dry-run",        no_argument,         NULL, ARG_DRY_RUN        },
                 { "no-pager",       no_argument,         NULL, ARG_NO_PAGER       },
+
+                /* This is not documented on purpose.
+                 * If you think --purge should be allowed without jumping through hoops,
+                 * consider opening a bug report with the description of the use case.
+                 */
+                { "destroy-data",   no_argument,         NULL, ARG_DESTROY_DATA   },
+
                 {}
         };
 
         int c, r;
+        bool destroy_data = false;
 
         assert(argc >= 0);
         assert(argv);
@@ -4346,6 +4355,10 @@ static int parse_argv(int argc, char *argv[]) {
                         arg_dry_run = true;
                         break;
 
+                case ARG_DESTROY_DATA:
+                        destroy_data = true;
+                        break;
+
                 case ARG_NO_PAGER:
                         arg_pager_flags |= PAGER_DISABLE;
                         break;
@@ -4364,6 +4377,10 @@ static int parse_argv(int argc, char *argv[]) {
         if (FLAGS_SET(arg_operation, OPERATION_PURGE) && optind >= argc)
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
                                        "Refusing --purge without specification of a configuration file.");
+
+        if (FLAGS_SET(arg_operation, OPERATION_PURGE) && !arg_dry_run && !destroy_data)
+                return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
+                                       "Refusing --purge without --destroy-data.");
 
         if (arg_replace && arg_cat_flags != CAT_CONFIG_OFF)
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
