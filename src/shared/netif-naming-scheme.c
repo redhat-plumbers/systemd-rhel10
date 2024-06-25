@@ -25,6 +25,23 @@ static const NamingScheme naming_schemes[] = {
         { "v254", NAMING_V254 },
         { "v255", NAMING_V255 },
         { "v257", NAMING_V257 },
+        { "rhel-8.0", NAMING_RHEL_8_0 },
+        { "rhel-8.1", NAMING_RHEL_8_1 },
+        { "rhel-8.2", NAMING_RHEL_8_2 },
+        { "rhel-8.3", NAMING_RHEL_8_3 },
+        { "rhel-8.4", NAMING_RHEL_8_4 },
+        { "rhel-8.5", NAMING_RHEL_8_5 },
+        { "rhel-8.6", NAMING_RHEL_8_6 },
+        { "rhel-8.7", NAMING_RHEL_8_7 },
+        { "rhel-8.8", NAMING_RHEL_8_8 },
+        { "rhel-8.9", NAMING_RHEL_8_9 },
+        { "rhel-8.10", NAMING_RHEL_8_10 },
+        { "rhel-9.0", NAMING_RHEL_9_0 },
+        { "rhel-9.1", NAMING_RHEL_9_1 },
+        { "rhel-9.2", NAMING_RHEL_9_2 },
+        { "rhel-9.3", NAMING_RHEL_9_3 },
+        { "rhel-9.4", NAMING_RHEL_9_4 },
+        { "rhel-10.0", NAMING_RHEL_10_0 },
         /* … add more schemes here, as the logic to name devices is updated … */
 
         EXTRA_NET_NAMING_MAP
