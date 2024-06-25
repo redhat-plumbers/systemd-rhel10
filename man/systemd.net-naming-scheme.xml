@@ -540,7 +540,194 @@
           <xi:include href="version-info.xml" xpointer="v257"/>
           </listitem>
         </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-10.0</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>v255</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-10.0"/>
+          </listitem>
+        </varlistentry>
       </variablelist>
+      <para>By default <constant>rhel-10.0</constant> is used.</para>
+
+      <refsect2>
+      <title>RHEL-9 schemes</title>
+      <para>It is also possible to pick a scheme from RHEL-9</para>
+      <variablelist>
+        <varlistentry>
+          <term><constant>rhel-9.0</constant></term>
+
+          <listitem><para>Since version <constant>v247</constant> we no longer set
+          <varname>ID_NET_NAME_SLOT</varname> if we detect that a PCI device associated with a slot is a PCI
+          bridge as that would create naming conflict when there are more child devices on that bridge. Now,
+          this is relaxed and we will use slot information to generate the name based on it but only if
+          the PCI device has multiple functions. This is safe because distinct function number is a part of
+          the device name for multifunction devices.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-9.0"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-9.1</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-9.0</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-9.1"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-9.2</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-9.0</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-9.2"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-9.3</constant></term>
+
+          <listitem><para>Naming was changed for SR-IOV virtual device representors.</para>
+
+          <para>The <literal>r<replaceable>slot</replaceable></literal> suffix was added to differentiate SR-IOV
+          virtual device representors attached to a single physical device interface.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-9.3"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-9.4</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-9.3</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-9.4"/>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+      </refsect2>
+
+      <refsect2>
+      <title>RHEL-8 schemes</title>
+      <para>It is also possible to pick a scheme from RHEL-8</para>
+      <variablelist>
+        <varlistentry>
+          <term><constant>rhel-8.0</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>v239</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.0"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.1</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.0</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.1"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.2</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.0</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.2"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.3</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.0</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.3"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.4</constant></term>
+
+          <listitem><para>If the PCI slot is assocated with PCI bridge and that has multiple child network
+          controllers then all of them might derive the same value of <varname>ID_NET_NAME_SLOT</varname>
+          property. That could cause naming conflict if the property is selected as a device name. Now, we detect the
+          situation, slot - bridge relation, and we don't produce the <varname>ID_NET_NAME_SLOT</varname> property to
+          avoid possible naming conflict.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.4"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.5</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.4</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.5"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.6</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.4</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.6"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+         <term><constant>rhel-8.7</constant></term>
+
+          <listitem><para>PCI hotplug slot names for the s390 PCI driver are a hexadecimal representation
+          of the <filename>function_id</filename> device attribute. This attribute is now used to build the
+          <varname>ID_NET_NAME_SLOT</varname>. Before that, all slot names were parsed as decimal
+          numbers, which could either result in an incorrect value of the <varname>ID_NET_NAME_SLOT</varname>
+          property or none at all.</para>
+
+          <para>Some firmware and hypervisor implementations report unreasonable high numbers for the onboard
+          index. To prevent the generation of bogus onbard interface names, index numbers greater than 16381
+          (2^14-1) were ignored. For s390 PCI devices index values up to 65535 (2^16-1) are valid. To account
+          for that, the limit is increased to now 65535.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.7"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.8</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.7</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.8"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.9</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.7</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.9"/>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-8.10</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-8.7</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-8.10"/>
+          </listitem>
+        </varlistentry>
+      </variablelist>
+      </refsect2>
 
     <para>Note that <constant>latest</constant> may be used to denote the latest scheme known (to this
     particular version of systemd).</para>
