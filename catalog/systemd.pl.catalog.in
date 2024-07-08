@@ -578,7 +578,6 @@ Support: %SUPPORT_URL%
 Możliwe są następujące „etykiety”:
 • „unmerged-usr” — /bin, /sbin, /lib* nie są dowiązaniami symbolicznymi
   do swoich odpowiedników pod /usr/,
-• „unmerged-bin” — /usr/sbin nie jest dowiązaniem symbolicznym do /usr/bin/,
 • „var-run-bad” — /var/run nie jest dowiązaniem symbolicznym do /run/,
 • „cgroupsv1” — system używa przestarzałej hierarchii cgroup v1,
 • „local-hwclock” — lokalny zegar sprzętowy (RTC) jest skonfigurowany
