@@ -43,6 +43,7 @@ typedef enum NamingSchemeFlags {
         NAMING_DEVICETREE_ALIASES        = 1 << 15, /* Generate names from devicetree aliases */
         NAMING_USB_HOST                  = 1 << 16, /* Generate names for usb host */
         NAMING_SR_IOV_R                  = 1 << 17, /* Use "r" suffix for SR-IOV VF representors */
+        NAMING_FIRMWARE_NODE_SUN         = 1 << 18, /* Use firmware_node/sun to get PCI slot number */
 
         /* And now the masks that combine the features above */
         NAMING_V238 = 0,
@@ -80,9 +81,9 @@ typedef enum NamingSchemeFlags {
         NAMING_RHEL_9_2 = NAMING_RHEL_9_0,
         NAMING_RHEL_9_3 = NAMING_RHEL_9_0 | NAMING_SR_IOV_R,
         NAMING_RHEL_9_4 = NAMING_RHEL_9_3,
-        NAMING_RHEL_9_5 = NAMING_RHEL_9_4 & ~NAMING_BRIDGE_MULTIFUNCTION_SLOT,
+        NAMING_RHEL_9_5 = (NAMING_RHEL_9_4 & ~NAMING_BRIDGE_MULTIFUNCTION_SLOT) | NAMING_FIRMWARE_NODE_SUN,
 
-        NAMING_RHEL_10_0 = NAMING_V255,
+        NAMING_RHEL_10_0 = NAMING_V255 | NAMING_FIRMWARE_NODE_SUN,
 
         EXTRA_NET_NAMING_SCHEMES
 
