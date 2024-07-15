@@ -37,6 +37,7 @@ If the change isn't upstream relevant or accepted by upstream, mark the commit w
 
 - `feature` - for feature-related commits (cross-version)
 - `bugfix` - for bugfix-related commits (cross-version)
+- `policy` - for policy-related commits (cross-version)
 - `doc` - for documentation-related commits (usually version-specific)
 - `workaround` - for workaround-related commits (usually version-specific)
 - `ci` - for CI-related commits (version-specific)
