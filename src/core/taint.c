@@ -39,7 +39,7 @@ char** taint_strv(void) {
          * runtime should be tagged here. For stuff that is known during compilation, emit a warning in the
          * configuration phase. */
 
-        _cleanup_free_ char *bin = NULL, *usr_sbin = NULL, *var_run = NULL;
+        _cleanup_free_ char *bin = NULL, *var_run = NULL;
 
         if (readlink_malloc("/bin", &bin) < 0 || !PATH_IN_SET(bin, "usr/bin", "/usr/bin"))
                 stage[n++] = "unmerged-usr";
