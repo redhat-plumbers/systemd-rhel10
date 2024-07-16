@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - main
-      - v[0-9]+-stable
+      - rhel-10.*
     paths:
       - "**"
       - "!README*"
@@ -26,7 +26,7 @@ on:
   pull_request:
     branches:
       - main
-      - v[0-9]+-stable
+      - rhel-10.*
     paths:
       - "**"
       - "!README*"
@@ -54,27 +54,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: arch
-            release: rolling
-            sanitizers: ""
-            llvm: 0
-            cflags: "-O2 -D_FORTIFY_SOURCE=3"
-            relabel: no
-            vm: 1
-          - distro: debian
-            release: testing
-            sanitizers: ""
-            llvm: 0
-            cflags: "-Og"
-            relabel: no
-            vm: 0
-          - distro: ubuntu
-            release: noble
-            sanitizers: ""
-            llvm: 0
-            cflags: "-Og"
-            relabel: no
-            vm: 0
           - distro: fedora
             release: "41"
             sanitizers: ""
@@ -88,13 +67,6 @@ jobs:
             llvm: 1
             cflags: "-Og"
             relabel: yes
-            vm: 0
-          - distro: opensuse
-            release: tumbleweed
-            sanitizers: ""
-            llvm: 0
-            cflags: "-Og"
-            relabel: no
             vm: 0
           - distro: centos
             release: "9"
