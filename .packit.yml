@@ -39,6 +39,9 @@ actions:
     - 'sed -i "/^CONFIGURE_OPTS=(/a--werror" .packit_rpm/systemd.spec'
     # Ignore unpackaged standalone binaries
     - "sed -i 's/assert False,.*/pass/' .packit_rpm/split-files.py"
+    # Drop the python3dist(zstd) dependency, as it's only in the RHEL buildroot
+    # repo
+    - "sed -i '/python3dist(zstd)/d' .packit_rpm/systemd.spec"
 
 # Available targets can be listed via `copr-cli list-chroots`
 jobs:
