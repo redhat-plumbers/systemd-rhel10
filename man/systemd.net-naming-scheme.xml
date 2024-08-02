@@ -528,7 +528,7 @@
         <varlistentry>
           <term><constant>rhel-10.0</constant></term>
 
-          <listitem><para>PCI slot number is now read from <constant>firmware_node/sun</constant> sysfs file</para>
+          <listitem><para>PCI slot number is now read from <constant>firmware_node/sun</constant> sysfs file.</para>
 
           <xi:include href="version-info.xml" xpointer="rhel-10.0"/>
           </listitem>
@@ -604,7 +604,7 @@
           children of the same PCI bridge, e.g. there are multiple PCI bridges in the same slot.
           </para>
 
-          <para>PCI slot number is now read from <constant>firmware_node/sun</constant> sysfs file</para>
+          <para>PCI slot number is now read from <constant>firmware_node/sun</constant> sysfs file.</para>
 
           <xi:include href="version-info.xml" xpointer="rhel-9.5"/>
           </listitem>
