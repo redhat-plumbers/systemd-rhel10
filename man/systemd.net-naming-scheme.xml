@@ -542,15 +542,15 @@
         </varlistentry>
 
         <varlistentry>
-          <term><constant>rhel-10.0</constant></term>
+          <term><constant>rhel-10.0-beta</constant></term>
 
           <listitem><para>Same as naming scheme <constant>v255</constant>.</para>
 
-          <xi:include href="version-info.xml" xpointer="rhel-10.0"/>
+          <xi:include href="version-info.xml" xpointer="rhel-10.0.beta"/>
           </listitem>
         </varlistentry>
       </variablelist>
-      <para>By default <constant>rhel-10.0</constant> is used.</para>
+      <para>By default <constant>rhel-10.0-beta</constant> is used.</para>
 
       <refsect2>
       <title>RHEL-9 schemes</title>
