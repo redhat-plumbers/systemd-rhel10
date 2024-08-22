@@ -528,7 +528,7 @@
         <varlistentry>
           <term><constant>rhel-10.0-beta</constant></term>
 
-          <listitem><para>PCI slot number is now read from <constant>firmware_node/sun</constant> sysfs file.</para>
+          <listitem><para>Same as naming scheme <constant>v255</constant>.</para>
 
           <xi:include href="version-info.xml" xpointer="rhel-10.0.beta"/>
           </listitem>
