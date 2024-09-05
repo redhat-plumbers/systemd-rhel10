@@ -6,7 +6,7 @@ labels:
 products:
   - Red Hat Enterprise Linux 10
   - CentOS Stream 10
-  - rhel-10.0.beta 
+  - rhel-10.0-beta
   - rhel-10.0
   - rhel-10.0.z
   - rhel-10.1
