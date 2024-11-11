@@ -387,6 +387,11 @@ executables += [
                 'dependencies' : libm,
         },
         test_template + {
+                'sources' : files('test-shift-uid.c'),
+                'dependencies' : libacl,
+                'type' : 'manual',
+        },
+        test_template + {
                 'sources' : files('test-process-util.c'),
                 'dependencies' : threads,
         },
