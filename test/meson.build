@@ -381,6 +381,7 @@ foreach dirname : [
 #        'TEST-84-STORAGETM', # we don't ship systemd-storagetm
 #        'TEST-85-NETWORK', # we don't ship systemd-networkd
         'TEST-86-MULTI-PROFILE-UKI',
+        'TEST-87-AUX-UTILS-VM',
 ]
         subdir(dirname)
 endforeach
