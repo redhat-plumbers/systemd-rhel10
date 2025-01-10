@@ -675,6 +675,7 @@ foreach ident : [
         ['fsmount',           '''#include <sys/mount.h>'''],
         ['getdents64',        '''#include <dirent.h>'''],
         ['pidfd_spawn',       '''#include <spawn.h>'''],
+        ['quotactl_fd',       '''#include <sys/quota.h>'''],
 ]
 
         have = cc.has_function(ident[0], prefix : ident[1], args : '-D_GNU_SOURCE')
