@@ -281,7 +281,7 @@ static void manager_reload(Manager *manager, bool force) {
         udev_builtin_reload(flags);
 
         if (FLAGS_SET(flags, UDEV_RELOAD_RULES)) {
-                r = udev_rules_load(&rules, manager->config.resolve_name_timing);
+                r = udev_rules_load(&rules, manager->config.resolve_name_timing, /* extra = */ NULL);
                 if (r < 0)
                         log_warning_errno(r, "Failed to read udev rules, using the previously loaded rules, ignoring: %m");
                 else
@@ -1433,7 +1433,7 @@ int manager_main(Manager *manager) {
 
         udev_builtin_init();
 
-        r = udev_rules_load(&manager->rules, manager->config.resolve_name_timing);
+        r = udev_rules_load(&manager->rules, manager->config.resolve_name_timing, /* extra = */ NULL);
         if (r < 0)
                 return log_error_errno(r, "Failed to read udev rules: %m");
 
