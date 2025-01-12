@@ -165,12 +165,15 @@ struct UdevRuleToken {
         const char *value;
         void *data;
 
+        const char *token_str; /* original token string for logging */
+
         UdevRuleLine *rule_line;
         LIST_FIELDS(UdevRuleToken, tokens);
 };
 
 struct UdevRuleLine {
         char *line;
+        char *line_for_logging;
         unsigned line_number;
         UdevRuleLineType type;
 
@@ -203,82 +206,109 @@ struct UdevRules {
 #define LINE_GET_RULES(line)                                            \
         ASSERT_PTR(ASSERT_PTR(ASSERT_PTR(line)->rule_file)->rules)
 
+static bool token_is_for_parents(UdevRuleToken *token) {
+        return token->type >= TK_M_PARENTS_KERNEL && token->type <= TK_M_PARENTS_TAG;
+}
+
 /*** Logging helpers ***/
 
-#define log_udev_rule_internal(device, file, line_nr, level, error, fmt, ...) \
+#define _log_udev_rule_file_full(device, device_u, file, file_u, line_nr, level, level_u, error, fmt, ...) \
         ({                                                              \
-                int _lv = (level);                                      \
-                sd_device *_dev = (device);                             \
-                UdevRuleFile *_f = (file);                              \
-                const char *_n = _f ? _f->filename : NULL;              \
+                int level_u = (level);                                  \
+                sd_device *device_u = (device);                         \
+                UdevRuleFile *file_u = (file);                          \
                                                                         \
-                if (!_dev && _f)                                        \
-                        _f->issues |= (1U << _lv);                      \
+                if (!device_u && file_u)                                \
+                        file_u->issues |= (1U << level_u);              \
                                                                         \
                 log_device_full_errno_zerook(                           \
-                                _dev, _lv, error, "%s:%u " fmt,         \
-                                strna(_n), line_nr,                     \
-                                ##__VA_ARGS__);                         \
+                                device_u, level_u, error, "%s:%u " fmt, \
+                                strna(file_u ? file_u->filename : NULL), \
+                                line_nr,  ##__VA_ARGS__);               \
         })
 
-/* Mainly used when applying tokens to the event device. */
-#define log_event_full_errno_zerook(device, token, ...)                 \
+#define log_udev_rule_file_full(device, file, line_nr, level, error, fmt, ...) \
+        _log_udev_rule_file_full(device, UNIQ_T(d, UNIQ), file, UNIQ_T(f, UNIQ), line_nr, level, UNIQ_T(l, UNIQ), error, fmt, ##__VA_ARGS__)
+
+#define _log_udev_rule_line_full(device, line, line_u, ...)             \
         ({                                                              \
-                UdevRuleToken *_t = (token);                            \
-                UdevRuleLine *_l = _t ? _t->rule_line : NULL;           \
+                UdevRuleLine *line_u = ASSERT_PTR(line);                \
                                                                         \
-                log_udev_rule_internal(                                 \
+                log_udev_rule_file_full(                                \
                                 device,                                 \
-                                _l ? _l->rule_file : NULL,              \
-                                _l ? _l->line_number : 0,               \
+                                line_u->rule_file, line_u->line_number, \
                                 __VA_ARGS__);                           \
         })
 
-#define log_event_full_errno(device, token, level, error, ...)          \
+#define log_udev_rule_line_full(device, line, ...)     \
+        _log_udev_rule_line_full(device, line, UNIQ_T(l, UNIQ), __VA_ARGS__)
+
+/* Mainly used when applying tokens to the event device. */
+#define _log_event_full_errno_zerook(event, event_u, token, token_u, level, error, fmt, ...) \
         ({                                                              \
-                int _error = (error);                                   \
-                ASSERT_NON_ZERO(_error);                                \
-                log_event_full_errno_zerook(                            \
-                        device, token, level, _error, ##__VA_ARGS__);   \
+                UdevEvent *event_u = ASSERT_PTR(event);                 \
+                UdevRuleToken *token_u = ASSERT_PTR(token);             \
+                                                                        \
+                log_udev_rule_line_full(                                \
+                                token_is_for_parents(token_u) ? event_u->dev_parent : event_u->dev, \
+                                token_u->rule_line,                     \
+                                level, error, "%s: " fmt,               \
+                                token_u->token_str, ##__VA_ARGS__);     \
         })
 
-#define log_event_full(device, token, level, ...)   (void) log_event_full_errno_zerook(device, token, level, 0, __VA_ARGS__)
+#define log_event_full_errno_zerook(event, token, ...)  \
+        _log_event_full_errno_zerook(event, UNIQ_T(e, UNIQ), token, UNIQ_T(t, UNIQ), __VA_ARGS__)
 
-#define log_event_debug(device, token, ...)   log_event_full(device, token, LOG_DEBUG, __VA_ARGS__)
-#define log_event_info(device, token, ...)    log_event_full(device, token, LOG_INFO, __VA_ARGS__)
-#define log_event_notice(device, token, ...)  log_event_full(device, token, LOG_NOTICE, __VA_ARGS__)
-#define log_event_warning(device, token, ...) log_event_full(device, token, LOG_WARNING, __VA_ARGS__)
-#define log_event_error(device, token, ...)   log_event_full(device, token, LOG_ERR, __VA_ARGS__)
+#define _log_event_full_errno(event, token, level, error, error_u, ...) \
+        ({                                                              \
+                int error_u = (error);                                  \
+                ASSERT_NON_ZERO(error_u);                               \
+                log_event_full_errno_zerook(                            \
+                                event, token, level, error_u,           \
+                                __VA_ARGS__);                           \
+        })
 
-#define log_event_debug_errno(device, token, error, ...)   log_event_full_errno(device, token, LOG_DEBUG, error, __VA_ARGS__)
-#define log_event_info_errno(device, token, error, ...)    log_event_full_errno(device, token, LOG_INFO, error, __VA_ARGS__)
-#define log_event_notice_errno(device, token, error, ...)  log_event_full_errno(device, token, LOG_NOTICE, error, __VA_ARGS__)
-#define log_event_warning_errno(device, token, error, ...) log_event_full_errno(device, token, LOG_WARNING, error, __VA_ARGS__)
-#define log_event_error_errno(device, token, error, ...)   log_event_full_errno(device, token, LOG_ERR, error, __VA_ARGS__)
+#define log_event_full_errno(event, token, level, error, ...)   \
+        _log_event_full_errno(event, token, level, error, UNIQ_T(e, UNIQ), __VA_ARGS__)
+
+#define log_event_full(event, token, level, ...)   (void) log_event_full_errno_zerook(event, token, level, 0, __VA_ARGS__)
+
+#define log_event_debug(event, token, ...)   log_event_full(event, token, LOG_DEBUG, __VA_ARGS__)
+#define log_event_info(event, token, ...)    log_event_full(event, token, LOG_INFO, __VA_ARGS__)
+#define log_event_notice(event, token, ...)  log_event_full(event, token, LOG_NOTICE, __VA_ARGS__)
+#define log_event_warning(event, token, ...) log_event_full(event, token, LOG_WARNING, __VA_ARGS__)
+#define log_event_error(event, token, ...)   log_event_full(event, token, LOG_ERR, __VA_ARGS__)
+
+#define log_event_debug_errno(event, token, error, ...)   log_event_full_errno(event, token, LOG_DEBUG, error, __VA_ARGS__)
+#define log_event_info_errno(event, token, error, ...)    log_event_full_errno(event, token, LOG_INFO, error, __VA_ARGS__)
+#define log_event_notice_errno(event, token, error, ...)  log_event_full_errno(event, token, LOG_NOTICE, error, __VA_ARGS__)
+#define log_event_warning_errno(event, token, error, ...) log_event_full_errno(event, token, LOG_WARNING, error, __VA_ARGS__)
+#define log_event_error_errno(event, token, error, ...)   log_event_full_errno(event, token, LOG_ERR, error, __VA_ARGS__)
+
+#define _log_event_trace(event, event_u, ...)                           \
+        ({                                                              \
+                UdevEvent *event_u = ASSERT_PTR(event);                 \
+                                                                        \
+                event_u->trace ?                                        \
+                        log_event_debug(event_u, __VA_ARGS__) :         \
+                        (void) 0;                                       \
+        })
+
+#define log_event_trace(event, ...)                                     \
+        _log_event_trace(event, UNIQ_T(e, UNIQ), __VA_ARGS__)
 
 /* Mainly used when parsing .rules files. */
-#define log_file_full_errno_zerook(...) \
-        log_udev_rule_internal(NULL, __VA_ARGS__)
+#define log_file_full_errno_zerook(...)                                 \
+        log_udev_rule_file_full(NULL, __VA_ARGS__)
 
 #define log_file_error(file, line_nr, ...)                              \
         log_file_full_errno_zerook(file, line_nr, LOG_ERR, 0, __VA_ARGS__)
 
-#define log_line_full_errno_zerook(line, ...)                           \
-        ({                                                              \
-                UdevRuleLine *_l = (line);                              \
-                log_file_full_errno_zerook(                             \
-                                _l ? _l->rule_file : NULL,              \
-                                _l ? _l->line_number : 0,               \
-                                __VA_ARGS__);                           \
-        })
+#define log_line_full_errno_zerook(...)                                 \
+        log_udev_rule_line_full(NULL, __VA_ARGS__)
 
 #define log_line_full_errno(line, level, error, ...)                    \
-        ({                                                              \
-                int _error = (error);                                   \
-                ASSERT_NON_ZERO(_error);                                \
-                log_line_full_errno_zerook(                             \
-                        line, level, _error, ##__VA_ARGS__);            \
-        })
+        log_udev_rule_line_full(NULL, line, level, error, __VA_ARGS__)
 
 #define log_line_full(line, level, ...)  (void) log_line_full_errno_zerook(line, level, 0, __VA_ARGS__)
 
@@ -316,15 +346,13 @@ static void log_unknown_owner(sd_device *dev, UdevRuleLine *line, int error, con
         ASSERT_NON_ZERO(error);
 
         if (IN_SET(abs(error), ENOENT, ESRCH))
-                log_udev_rule_internal(dev, line->rule_file, line->line_number, LOG_ERR, error,
-                                       "Unknown %s '%s', ignoring.", entity, name);
+                log_udev_rule_line_full(dev, line, LOG_ERR, error, "Unknown %s '%s', ignoring.", entity, name);
         else
-                log_udev_rule_internal(dev, line->rule_file, line->line_number, LOG_ERR, error,
-                                       "Failed to resolve %s '%s', ignoring: %m", entity, name);
+                log_udev_rule_line_full(dev, line, LOG_ERR, error, "Failed to resolve %s '%s', ignoring: %m", entity, name);
 }
 
 static void log_event_truncated(
-                sd_device *dev,
+                UdevEvent *event,
                 UdevRuleToken *token,
                 const char *what,
                 const char *format,
@@ -332,12 +360,12 @@ static void log_event_truncated(
                 bool is_match) {
 
         if (is_match)
-                log_event_debug(dev, token,
+                log_event_debug(event, token,
                                 "The %s is truncated while substituting into '%s', "
                                 "assuming the %s key does not match.",
                                 what, format, key);
         else
-                log_event_warning(dev, token,
+                log_event_warning(event, token,
                                   "The %s is truncated while substituting into '%s', "
                                   "refusing to apply the %s key.",
                                   what, format, key);
@@ -374,6 +402,7 @@ static UdevRuleLine* udev_rule_line_free(UdevRuleLine *rule_line) {
                 LIST_REMOVE(rule_lines, rule_line->rule_file->rule_lines, rule_line);
 
         free(rule_line->line);
+        free(rule_line->line_for_logging);
         return mfree(rule_line);
 }
 
@@ -494,7 +523,15 @@ static bool type_has_nulstr_value(UdevRuleTokenType type) {
         return type < TK_M_TEST || type == TK_M_RESULT;
 }
 
-static int rule_line_add_token(UdevRuleLine *rule_line, UdevRuleTokenType type, UdevRuleOperatorType op, char *value, void *data, bool is_case_insensitive) {
+static int rule_line_add_token(
+                UdevRuleLine *rule_line,
+                UdevRuleTokenType type,
+                UdevRuleOperatorType op,
+                char *value,
+                void *data,
+                bool is_case_insensitive,
+                const char *token_str) {
+
         _cleanup_(udev_rule_token_freep) UdevRuleToken *token = NULL;
         UdevRuleMatchType match_type = _MATCH_TYPE_INVALID;
         UdevRuleSubstituteType subst_type = _SUBST_TYPE_INVALID;
@@ -582,6 +619,7 @@ static int rule_line_add_token(UdevRuleLine *rule_line, UdevRuleTokenType type, 
                 .data = data,
                 .match_type = match_type,
                 .attr_subst_type = subst_type,
+                .token_str = token_str,
                 .rule_line = rule_line,
         };
 
@@ -629,7 +667,15 @@ static int check_attr_format_and_warn(UdevRuleLine *line, const char *key, const
         return 0;
 }
 
-static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, UdevRuleOperatorType op, char *value, bool is_case_insensitive) {
+static int parse_token(
+                UdevRuleLine *rule_line,
+                const char *key,
+                char *attr,
+                UdevRuleOperatorType op,
+                char *value,
+                bool is_case_insensitive,
+                const char *token_str) {
+
         ResolveNameTiming resolve_name_timing = LINE_GET_RULES(rule_line)->resolve_name_timing;
         bool is_match = IN_SET(op, OP_MATCH, OP_NOMATCH);
         int r;
@@ -647,29 +693,29 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_ACTION, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_ACTION, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "DEVPATH")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_DEVPATH, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_DEVPATH, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "KERNEL")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_KERNEL, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_KERNEL, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "SYMLINK")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match) {
                         check_value_format_and_warn(rule_line, key, value, false);
-                        r = rule_line_add_token(rule_line, TK_A_DEVLINK, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_DEVLINK, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 } else
-                        r = rule_line_add_token(rule_line, TK_M_DEVLINK, op, value, NULL, is_case_insensitive);
+                        r = rule_line_add_token(rule_line, TK_M_DEVLINK, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "NAME")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
@@ -689,9 +735,9 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                                                             "Ignoring NAME=\"\", as udev will not delete any network interfaces.");
                         check_value_format_and_warn(rule_line, key, value, false);
 
-                        r = rule_line_add_token(rule_line, TK_A_NAME, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_NAME, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 } else
-                        r = rule_line_add_token(rule_line, TK_M_NAME, op, value, NULL, is_case_insensitive);
+                        r = rule_line_add_token(rule_line, TK_M_NAME, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "ENV")) {
                 if (isempty(attr))
                         return log_line_invalid_attr(rule_line, key);
@@ -709,15 +755,15 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
 
                         check_value_format_and_warn(rule_line, key, value, false);
 
-                        r = rule_line_add_token(rule_line, TK_A_ENV, op, value, attr, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_ENV, op, value, attr, /* is_case_insensitive = */ false, token_str);
                 } else
-                        r = rule_line_add_token(rule_line, TK_M_ENV, op, value, attr, is_case_insensitive);
+                        r = rule_line_add_token(rule_line, TK_M_ENV, op, value, attr, is_case_insensitive, token_str);
         } else if (streq(key, "CONST")) {
                 if (isempty(attr) || !STR_IN_SET(attr, "arch", "virt"))
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
-                r = rule_line_add_token(rule_line, TK_M_CONST, op, value, attr, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_CONST, op, value, attr, is_case_insensitive, token_str);
         } else if (streq(key, "TAG")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
@@ -729,9 +775,9 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (!is_match) {
                         check_value_format_and_warn(rule_line, key, value, true);
 
-                        r = rule_line_add_token(rule_line, TK_A_TAG, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_TAG, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 } else
-                        r = rule_line_add_token(rule_line, TK_M_TAG, op, value, NULL, is_case_insensitive);
+                        r = rule_line_add_token(rule_line, TK_M_TAG, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "SUBSYSTEM")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
@@ -741,14 +787,14 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (STR_IN_SET(value, "bus", "class"))
                         log_line_warning(rule_line, "\"%s\" must be specified as \"subsystem\".", value);
 
-                r = rule_line_add_token(rule_line, TK_M_SUBSYSTEM, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_SUBSYSTEM, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "DRIVER")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_DRIVER, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_DRIVER, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "ATTR")) {
                 r = check_attr_format_and_warn(rule_line, key, attr);
                 if (r < 0)
@@ -762,9 +808,9 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
 
                 if (!is_match) {
                         check_value_format_and_warn(rule_line, key, value, false);
-                        r = rule_line_add_token(rule_line, TK_A_ATTR, op, value, attr, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_ATTR, op, value, attr, /* is_case_insensitive = */ false, token_str);
                 } else
-                        r = rule_line_add_token(rule_line, TK_M_ATTR, op, value, attr, is_case_insensitive);
+                        r = rule_line_add_token(rule_line, TK_M_ATTR, op, value, attr, is_case_insensitive, token_str);
         } else if (streq(key, "SYSCTL")) {
                 r = check_attr_format_and_warn(rule_line, key, attr);
                 if (r < 0)
@@ -778,30 +824,30 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
 
                 if (!is_match) {
                         check_value_format_and_warn(rule_line, key, value, false);
-                        r = rule_line_add_token(rule_line, TK_A_SYSCTL, op, value, attr, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_SYSCTL, op, value, attr, /* is_case_insensitive = */ false, token_str);
                 } else
-                        r = rule_line_add_token(rule_line, TK_M_SYSCTL, op, value, attr, is_case_insensitive);
+                        r = rule_line_add_token(rule_line, TK_M_SYSCTL, op, value, attr, is_case_insensitive, token_str);
         } else if (streq(key, "KERNELS")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_PARENTS_KERNEL, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_PARENTS_KERNEL, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "SUBSYSTEMS")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_PARENTS_SUBSYSTEM, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_PARENTS_SUBSYSTEM, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "DRIVERS")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_PARENTS_DRIVER, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_PARENTS_DRIVER, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "ATTRS")) {
                 r = check_attr_format_and_warn(rule_line, key, attr);
                 if (r < 0)
@@ -814,14 +860,14 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (strstr(attr, "../"))
                         log_line_warning(rule_line, "Direct reference to parent sysfs directory, may break in future kernels.");
 
-                r = rule_line_add_token(rule_line, TK_M_PARENTS_ATTR, op, value, attr, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_PARENTS_ATTR, op, value, attr, is_case_insensitive, token_str);
         } else if (streq(key, "TAGS")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_PARENTS_TAG, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_PARENTS_TAG, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "TEST")) {
                 mode_t mode = MODE_INVALID;
 
@@ -836,7 +882,7 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (is_case_insensitive)
                         return log_line_invalid_prefix(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_TEST, op, value, MODE_TO_PTR(mode), is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_TEST, op, value, MODE_TO_PTR(mode), is_case_insensitive, token_str);
         } else if (streq(key, "PROGRAM")) {
                 if (attr)
                         return log_line_invalid_attr(rule_line, key);
@@ -848,7 +894,7 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (is_case_insensitive)
                         return log_line_invalid_prefix(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_PROGRAM, op, value, NULL, /* is_case_insensitive */ false);
+                r = rule_line_add_token(rule_line, TK_M_PROGRAM, op, value, NULL, /* is_case_insensitive */ false, token_str);
         } else if (streq(key, "IMPORT")) {
                 if (isempty(attr))
                         return log_line_invalid_attr(rule_line, key);
@@ -861,16 +907,16 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                         return log_line_invalid_prefix(rule_line, key);
 
                 if (streq(attr, "file"))
-                        r = rule_line_add_token(rule_line, TK_M_IMPORT_FILE, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_M_IMPORT_FILE, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(attr, "program")) {
                         UdevBuiltinCommand cmd;
 
                         cmd = udev_builtin_lookup(value);
                         if (cmd >= 0) {
                                 log_line_debug(rule_line, "Found builtin command '%s' for %s, replacing attribute.", value, key);
-                                r = rule_line_add_token(rule_line, TK_M_IMPORT_BUILTIN, op, value, UDEV_BUILTIN_CMD_TO_PTR(cmd), /* is_case_insensitive = */ false);
+                                r = rule_line_add_token(rule_line, TK_M_IMPORT_BUILTIN, op, value, UDEV_BUILTIN_CMD_TO_PTR(cmd), /* is_case_insensitive = */ false, token_str);
                         } else
-                                r = rule_line_add_token(rule_line, TK_M_IMPORT_PROGRAM, op, value, NULL, /* is_case_insensitive = */ false);
+                                r = rule_line_add_token(rule_line, TK_M_IMPORT_PROGRAM, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 } else if (streq(attr, "builtin")) {
                         UdevBuiltinCommand cmd;
 
@@ -878,13 +924,13 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                         if (cmd < 0)
                                 return log_line_error_errno(rule_line, SYNTHETIC_ERRNO(EINVAL),
                                                             "Unknown builtin command: %s", value);
-                        r = rule_line_add_token(rule_line, TK_M_IMPORT_BUILTIN, op, value, UDEV_BUILTIN_CMD_TO_PTR(cmd), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_M_IMPORT_BUILTIN, op, value, UDEV_BUILTIN_CMD_TO_PTR(cmd), /* is_case_insensitive = */ false, token_str);
                 } else if (streq(attr, "db"))
-                        r = rule_line_add_token(rule_line, TK_M_IMPORT_DB, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_M_IMPORT_DB, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(attr, "cmdline"))
-                        r = rule_line_add_token(rule_line, TK_M_IMPORT_CMDLINE, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_M_IMPORT_CMDLINE, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(attr, "parent"))
-                        r = rule_line_add_token(rule_line, TK_M_IMPORT_PARENT, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_M_IMPORT_PARENT, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 else
                         return log_line_invalid_attr(rule_line, key);
         } else if (streq(key, "RESULT")) {
@@ -893,7 +939,7 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 if (!is_match)
                         return log_line_invalid_op(rule_line, key);
 
-                r = rule_line_add_token(rule_line, TK_M_RESULT, op, value, NULL, is_case_insensitive);
+                r = rule_line_add_token(rule_line, TK_M_RESULT, op, value, NULL, is_case_insensitive, token_str);
         } else if (streq(key, "OPTIONS")) {
                 char *tmp;
 
@@ -905,24 +951,24 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                         op = OP_ASSIGN;
 
                 if (streq(value, "string_escape=none"))
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_STRING_ESCAPE_NONE, op, NULL, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_STRING_ESCAPE_NONE, op, NULL, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(value, "string_escape=replace"))
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_STRING_ESCAPE_REPLACE, op, NULL, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_STRING_ESCAPE_REPLACE, op, NULL, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(value, "db_persist"))
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_DB_PERSIST, op, NULL, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_DB_PERSIST, op, NULL, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(value, "watch"))
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_INOTIFY_WATCH, op, NULL, INT_TO_PTR(1), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_INOTIFY_WATCH, op, NULL, INT_TO_PTR(1), /* is_case_insensitive = */ false, token_str);
                 else if (streq(value, "nowatch"))
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_INOTIFY_WATCH, op, NULL, INT_TO_PTR(0), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_INOTIFY_WATCH, op, NULL, INT_TO_PTR(0), /* is_case_insensitive = */ false, token_str);
                 else if ((tmp = startswith(value, "static_node=")))
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_STATIC_NODE, op, tmp, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_STATIC_NODE, op, tmp, NULL, /* is_case_insensitive = */ false, token_str);
                 else if ((tmp = startswith(value, "link_priority="))) {
                         int prio;
 
                         r = safe_atoi(tmp, &prio);
                         if (r < 0)
                                 return log_line_error_errno(rule_line, r, "Failed to parse link priority '%s': %m", tmp);
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_DEVLINK_PRIORITY, op, NULL, INT_TO_PTR(prio), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_DEVLINK_PRIORITY, op, NULL, INT_TO_PTR(prio), /* is_case_insensitive = */ false, token_str);
                 } else if ((tmp = startswith(value, "log_level="))) {
                         int level;
 
@@ -933,7 +979,7 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                                 if (level < 0)
                                         return log_line_error_errno(rule_line, level, "Failed to parse log level '%s': %m", tmp);
                         }
-                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_LOG_LEVEL, op, NULL, INT_TO_PTR(level), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OPTIONS_LOG_LEVEL, op, NULL, INT_TO_PTR(level), /* is_case_insensitive = */ false, token_str);
                 } else {
                         log_line_warning(rule_line, "Invalid value for OPTIONS key, ignoring: '%s'", value);
                         return 0;
@@ -951,17 +997,17 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 }
 
                 if (parse_uid(value, &uid) >= 0)
-                        r = rule_line_add_token(rule_line, TK_A_OWNER_ID, op, NULL, UID_TO_PTR(uid), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OWNER_ID, op, NULL, UID_TO_PTR(uid), /* is_case_insensitive = */ false, token_str);
                 else if (resolve_name_timing == RESOLVE_NAME_EARLY &&
                            rule_get_substitution_type(value) == SUBST_TYPE_PLAIN) {
                         r = rule_resolve_user(rule_line, value, &uid);
                         if (r < 0)
                                 return log_line_error_errno(rule_line, r, "Failed to resolve user name '%s': %m", value);
 
-                        r = rule_line_add_token(rule_line, TK_A_OWNER_ID, op, NULL, UID_TO_PTR(uid), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OWNER_ID, op, NULL, UID_TO_PTR(uid), /* is_case_insensitive = */ false, token_str);
                 } else if (resolve_name_timing != RESOLVE_NAME_NEVER) {
                         check_value_format_and_warn(rule_line, key, value, true);
-                        r = rule_line_add_token(rule_line, TK_A_OWNER, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_OWNER, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 } else {
                         log_line_debug(rule_line, "User name resolution is disabled, ignoring %s=\"%s\".", key, value);
                         return 0;
@@ -979,17 +1025,17 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 }
 
                 if (parse_gid(value, &gid) >= 0)
-                        r = rule_line_add_token(rule_line, TK_A_GROUP_ID, op, NULL, GID_TO_PTR(gid), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_GROUP_ID, op, NULL, GID_TO_PTR(gid), /* is_case_insensitive = */ false, token_str);
                 else if (resolve_name_timing == RESOLVE_NAME_EARLY &&
                            rule_get_substitution_type(value) == SUBST_TYPE_PLAIN) {
                         r = rule_resolve_group(rule_line, value, &gid);
                         if (r < 0)
                                 return log_line_error_errno(rule_line, r, "Failed to resolve group name '%s': %m", value);
 
-                        r = rule_line_add_token(rule_line, TK_A_GROUP_ID, op, NULL, GID_TO_PTR(gid), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_GROUP_ID, op, NULL, GID_TO_PTR(gid), /* is_case_insensitive = */ false, token_str);
                 } else if (resolve_name_timing != RESOLVE_NAME_NEVER) {
                         check_value_format_and_warn(rule_line, key, value, true);
-                        r = rule_line_add_token(rule_line, TK_A_GROUP, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_GROUP, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 } else {
                         log_line_debug(rule_line, "Resolving group name is disabled, ignoring GROUP=\"%s\".", value);
                         return 0;
@@ -1007,10 +1053,10 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                 }
 
                 if (parse_mode(value, &mode) >= 0)
-                        r = rule_line_add_token(rule_line, TK_A_MODE_ID, op, NULL, MODE_TO_PTR(mode), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_MODE_ID, op, NULL, MODE_TO_PTR(mode), /* is_case_insensitive = */ false, token_str);
                 else {
                         check_value_format_and_warn(rule_line, key, value, true);
-                        r = rule_line_add_token(rule_line, TK_A_MODE, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_MODE, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 }
         } else if (streq(key, "SECLABEL")) {
                 if (isempty(attr))
@@ -1023,13 +1069,13 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                         op = OP_ASSIGN;
                 }
 
-                r = rule_line_add_token(rule_line, TK_A_SECLABEL, op, value, attr, /* is_case_insensitive = */ false);
+                r = rule_line_add_token(rule_line, TK_A_SECLABEL, op, value, attr, /* is_case_insensitive = */ false, token_str);
         } else if (streq(key, "RUN")) {
                 if (is_match || op == OP_REMOVE)
                         return log_line_invalid_op(rule_line, key);
                 check_value_format_and_warn(rule_line, key, value, true);
                 if (!attr || streq(attr, "program"))
-                        r = rule_line_add_token(rule_line, TK_A_RUN_PROGRAM, op, value, NULL, /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_RUN_PROGRAM, op, value, NULL, /* is_case_insensitive = */ false, token_str);
                 else if (streq(attr, "builtin")) {
                         UdevBuiltinCommand cmd;
 
@@ -1037,7 +1083,7 @@ static int parse_token(UdevRuleLine *rule_line, const char *key, char *attr, Ude
                         if (cmd < 0)
                                 return log_line_error_errno(rule_line, SYNTHETIC_ERRNO(EINVAL),
                                                              "Unknown builtin command '%s', ignoring.", value);
-                        r = rule_line_add_token(rule_line, TK_A_RUN_BUILTIN, op, value, UDEV_BUILTIN_CMD_TO_PTR(cmd), /* is_case_insensitive = */ false);
+                        r = rule_line_add_token(rule_line, TK_A_RUN_BUILTIN, op, value, UDEV_BUILTIN_CMD_TO_PTR(cmd), /* is_case_insensitive = */ false, token_str);
                 } else
                         return log_line_invalid_attr(rule_line, key);
         } else if (streq(key, "GOTO")) {
@@ -1297,32 +1343,30 @@ static void sort_tokens(UdevRuleLine *rule_line) {
         }
 }
 
-static int rule_add_line(UdevRuleFile *rule_file, const char *line_str, unsigned line_nr, bool extra_checks) {
+static int rule_add_line(UdevRuleFile *rule_file, const char *line, unsigned line_nr, bool extra_checks) {
         _cleanup_(udev_rule_line_freep) UdevRuleLine *rule_line = NULL;
-        _cleanup_free_ char *line = NULL;
         char *p;
         int r;
 
         assert(rule_file);
-        assert(line_str);
+        assert(line);
 
-        if (isempty(line_str))
+        if (isempty(line))
                 return 0;
-
-        line = strdup(line_str);
-        if (!line)
-                return log_oom();
 
         rule_line = new(UdevRuleLine, 1);
         if (!rule_line)
                 return log_oom();
 
         *rule_line = (UdevRuleLine) {
-                .line = TAKE_PTR(line),
+                .line = strdup(line),
+                .line_for_logging = strdup(line),
                 .line_number = line_nr,
-                .rule_file = rule_file,
         };
+        if (!rule_line->line || !rule_line->line_for_logging)
+                return log_oom();
 
+        rule_line->rule_file = rule_file;
         LIST_APPEND(rule_lines, rule_file->rule_lines, rule_line);
 
         for (p = rule_line->line; !isempty(p); ) {
@@ -1339,7 +1383,9 @@ static int rule_add_line(UdevRuleFile *rule_file, const char *line_str, unsigned
                 if (r == 0)
                         break;
 
-                r = parse_token(rule_line, key, attr, op, value, is_case_insensitive);
+                char *token_str = rule_line->line_for_logging + (key - rule_line->line);
+                token_str[p - key] = '\0';
+                r = parse_token(rule_line, key, attr, op, value, is_case_insensitive, token_str);
                 if (r < 0)
                         return r;
         }
@@ -1801,7 +1847,7 @@ static bool token_match_attr(UdevRuleToken *token, sd_device *dev, UdevEvent *ev
         case SUBST_TYPE_FORMAT:
                 (void) udev_event_apply_format(event, name, nbuf, sizeof(nbuf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "sysfs attribute name", name,
+                        log_event_truncated(event, token, "sysfs attribute name", name,
                                             token->type == TK_M_ATTR ? "ATTR" : "ATTRS", /* is_match = */ true);
                         return false;
                 }
@@ -1986,7 +2032,7 @@ static int udev_rule_apply_token_to_event(
 
                 r = sd_device_get_action(dev, &a);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to get uevent action type: %m");
+                        return log_event_error_errno(event, token, r, "Failed to get uevent action type: %m");
 
                 return token_match_string(token, device_action_to_string(a));
         }
@@ -1995,7 +2041,7 @@ static int udev_rule_apply_token_to_event(
 
                 r = sd_device_get_devpath(dev, &val);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to get devpath: %m");
+                        return log_event_error_errno(event, token, r, "Failed to get devpath: %m");
 
                 return token_match_string(token, val);
         }
@@ -2005,7 +2051,7 @@ static int udev_rule_apply_token_to_event(
 
                 r = sd_device_get_sysname(dev, &val);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to get sysname: %m");
+                        return log_event_error_errno(event, token, r, "Failed to get sysname: %m");
 
                 return token_match_string(token, val);
         }
@@ -2050,7 +2096,7 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOENT)
                         val = NULL;
                 else if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to get subsystem: %m");
+                        return log_event_error_errno(event, token, r, "Failed to get subsystem: %m");
 
                 return token_match_string(token, val);
         }
@@ -2062,7 +2108,7 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOENT)
                         val = NULL;
                 else if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to get driver: %m");
+                        return log_event_error_errno(event, token, r, "Failed to get driver: %m");
 
                 return token_match_string(token, val);
         }
@@ -2076,13 +2122,13 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->data, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "sysctl entry name", token->data, "SYSCTL", /* is_match = */ true);
+                        log_event_truncated(event, token, "sysctl entry name", token->data, "SYSCTL", /* is_match = */ true);
                         return false;
                 }
 
                 r = sysctl_read(sysctl_normalize(buf), &value);
                 if (r < 0 && r != -ENOENT)
-                        return log_event_error_errno(dev, token, r, "Failed to read sysctl '%s': %m", buf);
+                        return log_event_error_errno(event, token, r, "Failed to read sysctl '%s': %m", buf);
 
                 return token_match_string(token, strstrip(value));
         }
@@ -2094,7 +2140,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "file name", token->value, "TEST", /* is_match = */ true);
+                        log_event_truncated(event, token, "file name", token->value, "TEST", /* is_match = */ true);
                         return false;
                 }
 
@@ -2105,7 +2151,7 @@ static int udev_rule_apply_token_to_event(
 
                         r = sd_device_get_syspath(dev, &val);
                         if (r < 0)
-                                return log_event_error_errno(dev, token, r, "Failed to get syspath: %m");
+                                return log_event_error_errno(event, token, r, "Failed to get syspath: %m");
 
                         strscpy_full(tmp, sizeof(tmp), buf, &truncated);
                         assert(!truncated);
@@ -2118,7 +2164,7 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOENT)
                         return token->op == OP_NOMATCH;
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to test for the existence of '%s': %m", buf);
+                        return log_event_error_errno(event, token, r, "Failed to test for the existence of '%s': %m", buf);
 
                 if (stat(buf, &statbuf) < 0)
                         return token->op == OP_NOMATCH;
@@ -2137,25 +2183,25 @@ static int udev_rule_apply_token_to_event(
                 event->program_result = mfree(event->program_result);
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "command", token->value, "PROGRAM", /* is_match = */ true);
+                        log_event_truncated(event, token, "command", token->value, "PROGRAM", /* is_match = */ true);
                         return false;
                 }
 
-                log_event_debug(dev, token, "Running PROGRAM=\"%s\"", buf);
+                log_event_debug(event, token, "Running PROGRAM=\"%s\"", buf);
 
                 r = udev_event_spawn(event, /* accept_failure = */ true, buf, result, sizeof(result), NULL);
                 if (r != 0) {
                         if (r < 0)
-                                log_event_warning_errno(dev, token, r, "Failed to execute \"%s\": %m", buf);
+                                log_event_warning_errno(event, token, r, "Failed to execute \"%s\": %m", buf);
                         else /* returned value is positive when program fails */
-                                log_event_debug(dev, token, "Command \"%s\" returned %d (error)", buf, r);
+                                log_event_debug(event, token, "Command \"%s\" returned %d (error)", buf, r);
                         return token->op == OP_NOMATCH;
                 }
 
                 delete_trailing_chars(result, "\n");
                 count = udev_replace_chars(result, UDEV_ALLOWED_CHARS_INPUT);
                 if (count > 0)
-                        log_event_debug(dev, token,
+                        log_event_debug(event, token,
                                         "Replaced %zu character(s) in result of \"%s\"",
                                         count, buf);
 
@@ -2169,16 +2215,16 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "file name to be imported", token->value, "IMPORT", /* is_match = */ true);
+                        log_event_truncated(event, token, "file name to be imported", token->value, "IMPORT", /* is_match = */ true);
                         return false;
                 }
 
-                log_event_debug(dev, token, "Importing properties from '%s'", buf);
+                log_event_debug(event, token, "Importing properties from '%s'", buf);
 
                 f = fopen(buf, "re");
                 if (!f) {
                         if (errno != ENOENT)
-                                return log_event_error_errno(dev, token, errno, "Failed to open '%s': %m", buf);
+                                return log_event_error_errno(event, token, errno, "Failed to open '%s': %m", buf);
                         return token->op == OP_NOMATCH;
                 }
 
@@ -2188,7 +2234,7 @@ static int udev_rule_apply_token_to_event(
 
                         r = read_line(f, LONG_LINE_MAX, &line);
                         if (r < 0) {
-                                log_event_debug_errno(dev, token, r, "Failed to read '%s', ignoring: %m", buf);
+                                log_event_debug_errno(event, token, r, "Failed to read '%s', ignoring: %m", buf);
                                 return token->op == OP_NOMATCH;
                         }
                         if (r == 0)
@@ -2196,7 +2242,7 @@ static int udev_rule_apply_token_to_event(
 
                         r = get_property_from_string(line, &key, &value);
                         if (r < 0) {
-                                log_event_debug_errno(dev, token, r,
+                                log_event_debug_errno(event, token, r,
                                                       "Failed to parse key and value from '%s', ignoring: %m",
                                                       line);
                                 continue;
@@ -2206,7 +2252,7 @@ static int udev_rule_apply_token_to_event(
 
                         r = device_add_property(dev, key, value);
                         if (r < 0)
-                                return log_event_error_errno(dev, token, r,
+                                return log_event_error_errno(event, token, r,
                                                              "Failed to add property %s=%s: %m",
                                                              key, value);
                 }
@@ -2220,18 +2266,18 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "command", token->value, "IMPORT", /* is_match = */ true);
+                        log_event_truncated(event, token, "command", token->value, "IMPORT", /* is_match = */ true);
                         return false;
                 }
 
-                log_event_debug(dev, token, "Importing properties from results of '%s'", buf);
+                log_event_debug(event, token, "Importing properties from results of '%s'", buf);
 
                 r = udev_event_spawn(event, /* accept_failure = */ true, buf, result, sizeof result, &truncated);
                 if (r != 0) {
                         if (r < 0)
-                                log_event_warning_errno(dev, token, r, "Failed to execute '%s', ignoring: %m", buf);
+                                log_event_warning_errno(event, token, r, "Failed to execute '%s', ignoring: %m", buf);
                         else /* returned value is positive when program fails */
-                                log_event_debug(dev, token, "Command \"%s\" returned %d (error), ignoring", buf, r);
+                                log_event_debug(event, token, "Command \"%s\" returned %d (error), ignoring", buf, r);
                         return token->op == OP_NOMATCH;
                 }
 
@@ -2251,7 +2297,7 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOMEM)
                         return log_oom();
                 if (r < 0) {
-                        log_event_warning_errno(dev, token, r,
+                        log_event_warning_errno(event, token, r,
                                                 "Failed to extract lines from result of command \"%s\", ignoring: %m", buf);
                         return false;
                 }
@@ -2261,7 +2307,7 @@ static int udev_rule_apply_token_to_event(
 
                         r = get_property_from_string(*line, &key, &value);
                         if (r < 0) {
-                                log_event_debug_errno(dev, token, r,
+                                log_event_debug_errno(event, token, r,
                                                       "Failed to parse key and value from '%s', ignoring: %m",
                                                       *line);
                                 continue;
@@ -2271,7 +2317,7 @@ static int udev_rule_apply_token_to_event(
 
                         r = device_add_property(dev, key, value);
                         if (r < 0)
-                                return log_event_error_errno(dev, token, r,
+                                return log_event_error_errno(event, token, r,
                                                              "Failed to add property %s=%s: %m",
                                                              key, value);
                 }
@@ -2288,7 +2334,7 @@ static int udev_rule_apply_token_to_event(
                 if (udev_builtin_run_once(cmd)) {
                         /* check if we ran already */
                         if (event->builtin_run & mask) {
-                                log_event_debug(dev, token, "Skipping builtin '%s' in IMPORT key",
+                                log_event_debug(event, token, "Skipping builtin '%s' in IMPORT key",
                                                 udev_builtin_name(cmd));
                                 /* return the result from earlier run */
                                 return token->op == (event->builtin_ret & mask ? OP_NOMATCH : OP_MATCH);
@@ -2299,16 +2345,16 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "builtin command", token->value, "IMPORT", /* is_match = */ true);
+                        log_event_truncated(event, token, "builtin command", token->value, "IMPORT", /* is_match = */ true);
                         return false;
                 }
 
-                log_event_debug(dev, token, "Importing properties from results of builtin command '%s'", buf);
+                log_event_debug(event, token, "Importing properties from results of builtin command '%s'", buf);
 
                 r = udev_builtin_run(event, cmd, buf);
                 if (r < 0) {
                         /* remember failure */
-                        log_event_debug_errno(dev, token, r, "Failed to run builtin '%s': %m", buf);
+                        log_event_debug_errno(event, token, r, "Failed to run builtin '%s': %m", buf);
                         event->builtin_ret |= mask;
                 }
                 return token->op == (r >= 0 ? OP_MATCH : OP_NOMATCH);
@@ -2322,13 +2368,13 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOENT)
                         return token->op == OP_NOMATCH;
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r,
+                        return log_event_error_errno(event, token, r,
                                                      "Failed to get property '%s' from database: %m",
                                                      token->value);
 
                 r = device_add_property(dev, token->value, val);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to add property '%s=%s': %m",
+                        return log_event_error_errno(event, token, r, "Failed to add property '%s=%s': %m",
                                                      token->value, val);
                 return token->op == OP_MATCH;
         }
@@ -2337,7 +2383,7 @@ static int udev_rule_apply_token_to_event(
 
                 r = proc_cmdline_get_key(token->value, PROC_CMDLINE_VALUE_OPTIONAL|PROC_CMDLINE_IGNORE_EFI_OPTIONS, &value);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r,
+                        return log_event_error_errno(event, token, r,
                                                      "Failed to read '%s' option from /proc/cmdline: %m",
                                                      token->value);
                 if (r == 0)
@@ -2345,7 +2391,7 @@ static int udev_rule_apply_token_to_event(
 
                 r = device_add_property(dev, token->value, value ?: "1");
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to add property '%s=%s': %m",
+                        return log_event_error_errno(event, token, r, "Failed to add property '%s=%s': %m",
                                                      token->value, value ?: "1");
                 return token->op == OP_MATCH;
         }
@@ -2355,13 +2401,13 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "property name", token->value, "IMPORT", /* is_match = */ true);
+                        log_event_truncated(event, token, "property name", token->value, "IMPORT", /* is_match = */ true);
                         return false;
                 }
 
                 r = import_parent_into_properties(dev, buf);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r,
+                        return log_event_error_errno(event, token, r,
                                                      "Failed to import properties '%s' from parent: %m",
                                                      buf);
                 return token->op == (r > 0 ? OP_MATCH : OP_NOMATCH);
@@ -2399,7 +2445,7 @@ static int udev_rule_apply_token_to_event(
                 else {
                         _cleanup_free_ char *level_str = NULL;
                         (void) log_level_to_string_alloc(level, &level_str);
-                        log_event_debug(dev, token, "Running in test mode, skipping changing maximum log level to %s.", strna(level_str));
+                        log_event_debug(event, token, "Running in test mode, skipping changing maximum log level to %s.", strna(level_str));
                 }
 
                 if (level == LOG_DEBUG && !event->log_level_was_debug) {
@@ -2423,7 +2469,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, owner, sizeof(owner), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "user name", token->value, "OWNER", /* is_match = */ false);
+                        log_event_truncated(event, token, "user name", token->value, "OWNER", /* is_match = */ false);
                         break;
                 }
 
@@ -2431,7 +2477,7 @@ static int udev_rule_apply_token_to_event(
                 if (r < 0)
                         log_unknown_owner(dev, token->rule_line, r, "user", owner);
                 else
-                        log_event_debug(dev, token, "OWNER %s(%u)", owner, event->uid);
+                        log_event_debug(event, token, "OWNER %s(%u)", owner, event->uid);
                 break;
         }
         case TK_A_GROUP: {
@@ -2446,7 +2492,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, group, sizeof(group), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "group name", token->value, "GROUP", /* is_match = */ false);
+                        log_event_truncated(event, token, "group name", token->value, "GROUP", /* is_match = */ false);
                         break;
                 }
 
@@ -2454,7 +2500,7 @@ static int udev_rule_apply_token_to_event(
                 if (r < 0)
                         log_unknown_owner(dev, token->rule_line, r, "group", group);
                 else
-                        log_event_debug(dev, token, "GROUP %s(%u)", group, event->gid);
+                        log_event_debug(event, token, "GROUP %s(%u)", group, event->gid);
                 break;
         }
         case TK_A_MODE: {
@@ -2468,15 +2514,15 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, mode_str, sizeof(mode_str), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "mode", token->value, "MODE", /* is_match = */ false);
+                        log_event_truncated(event, token, "mode", token->value, "MODE", /* is_match = */ false);
                         break;
                 }
 
                 r = parse_mode(mode_str, &event->mode);
                 if (r < 0)
-                        log_event_error_errno(dev, token, r, "Failed to parse mode '%s', ignoring: %m", mode_str);
+                        log_event_error_errno(event, token, r, "Failed to parse mode '%s', ignoring: %m", mode_str);
                 else
-                        log_event_debug(dev, token, "MODE %#o", event->mode);
+                        log_event_debug(event, token, "MODE %#o", event->mode);
                 break;
         }
         case TK_A_OWNER_ID:
@@ -2487,7 +2533,7 @@ static int udev_rule_apply_token_to_event(
                 if (!token->data)
                         break;
                 event->uid = PTR_TO_UID(token->data);
-                log_event_debug(dev, token, "OWNER %u", event->uid);
+                log_event_debug(event, token, "OWNER %u", event->uid);
                 break;
         case TK_A_GROUP_ID:
                 if (event->group_final)
@@ -2497,7 +2543,7 @@ static int udev_rule_apply_token_to_event(
                 if (!token->data)
                         break;
                 event->gid = PTR_TO_GID(token->data);
-                log_event_debug(dev, token, "GROUP %u", event->gid);
+                log_event_debug(event, token, "GROUP %u", event->gid);
                 break;
         case TK_A_MODE_ID:
                 if (event->mode_final)
@@ -2507,7 +2553,7 @@ static int udev_rule_apply_token_to_event(
                 if (!token->data)
                         break;
                 event->mode = PTR_TO_MODE(token->data);
-                log_event_debug(dev, token, "MODE %#o", event->mode);
+                log_event_debug(event, token, "MODE %#o", event->mode);
                 break;
         case TK_A_SECLABEL: {
                 _cleanup_free_ char *name = NULL, *label = NULL;
@@ -2520,7 +2566,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, label_str, sizeof(label_str), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "security label", token->value, "SECLABEL", /* is_match = */ false);
+                        log_event_truncated(event, token, "security label", token->value, "SECLABEL", /* is_match = */ false);
                         break;
                 }
 
@@ -2538,9 +2584,9 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOMEM)
                         return log_oom();
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to store SECLABEL{%s}='%s': %m", name, label);
+                        return log_event_error_errno(event, token, r, "Failed to store SECLABEL{%s}='%s': %m", name, label);
 
-                log_event_debug(dev, token, "SECLABEL{%s}='%s'", name, label);
+                log_event_debug(event, token, "SECLABEL{%s}='%s'", name, label);
 
                 TAKE_PTR(name);
                 TAKE_PTR(label);
@@ -2557,7 +2603,7 @@ static int udev_rule_apply_token_to_event(
                                 break;
                         r = device_add_property(dev, name, NULL);
                         if (r < 0)
-                                return log_event_error_errno(dev, token, r, "Failed to remove property '%s': %m", name);
+                                return log_event_error_errno(event, token, r, "Failed to remove property '%s': %m", name);
                         break;
                 }
 
@@ -2565,7 +2611,7 @@ static int udev_rule_apply_token_to_event(
                     device_get_property_value_with_fallback(dev, name, event->worker ? event->worker->properties : NULL, &val) >= 0) {
                         l = strpcpyl_full(&p, l, &truncated, val, " ", NULL);
                         if (truncated) {
-                                log_event_warning(dev, token,
+                                log_event_warning(event, token,
                                                   "The buffer for the property '%s' is full, "
                                                   "refusing to append the new value '%s'.", name, token->value);
                                 break;
@@ -2575,7 +2621,7 @@ static int udev_rule_apply_token_to_event(
                 (void) udev_event_apply_format(event, token->value, p, l, false, &truncated);
                 if (truncated) {
                         _cleanup_free_ char *key_with_name = strjoin("ENV{", name, "}");
-                        log_event_truncated(dev, token, "property value", token->value,
+                        log_event_truncated(event, token, "property value", token->value,
                                             key_with_name ?: "ENV", /* is_match = */ false);
                         break;
                 }
@@ -2583,14 +2629,14 @@ static int udev_rule_apply_token_to_event(
                 if (event->esc == ESCAPE_REPLACE) {
                         count = udev_replace_chars(p, NULL);
                         if (count > 0)
-                                log_event_debug(dev, token,
+                                log_event_debug(event, token,
                                                 "Replaced %zu slash(es) from result of ENV{%s}%s=\"%s\"",
                                                 count, name, token->op == OP_ADD ? "+" : "", token->value);
                 }
 
                 r = device_add_property(dev, name, value_new);
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to add property '%s=%s': %m", name, value_new);
+                        return log_event_error_errno(event, token, r, "Failed to add property '%s=%s': %m", name, value_new);
                 break;
         }
         case TK_A_TAG: {
@@ -2599,7 +2645,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "tag name", token->value, "TAG", /* is_match = */ false);
+                        log_event_truncated(event, token, "tag name", token->value, "TAG", /* is_match = */ false);
                         break;
                 }
 
@@ -2613,7 +2659,7 @@ static int udev_rule_apply_token_to_event(
                         if (r == -ENOMEM)
                                 return log_oom();
                         if (r < 0)
-                                log_event_warning_errno(dev, token, r, "Failed to add tag '%s', ignoring: %m", buf);
+                                log_event_warning_errno(event, token, r, "Failed to add tag '%s', ignoring: %m", buf);
                 }
                 break;
         }
@@ -2628,7 +2674,7 @@ static int udev_rule_apply_token_to_event(
                         event->name_final = true;
 
                 if (sd_device_get_ifindex(dev, NULL) < 0) {
-                        log_event_error(dev, token,
+                        log_event_error(event, token,
                                         "Only network interfaces can be renamed, ignoring NAME=\"%s\".",
                                         token->value);
                         break;
@@ -2636,7 +2682,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "network interface name", token->value, "NAME", /* is_match = */ false);
+                        log_event_truncated(event, token, "network interface name", token->value, "NAME", /* is_match = */ false);
                         break;
                 }
 
@@ -2646,7 +2692,7 @@ static int udev_rule_apply_token_to_event(
                         else
                                 count = udev_replace_chars(buf, "/");
                         if (count > 0)
-                                log_event_debug(dev, token,
+                                log_event_debug(event, token,
                                                 "Replaced %zu character(s) from result of NAME=\"%s\"",
                                                 count, token->value);
                 }
@@ -2654,7 +2700,7 @@ static int udev_rule_apply_token_to_event(
                 if (r < 0)
                         return r;
 
-                log_event_debug(dev, token, "NAME '%s'", event->name);
+                log_event_debug(event, token, "NAME '%s'", event->name);
                 break;
         }
         case TK_A_DEVLINK: {
@@ -2674,7 +2720,7 @@ static int udev_rule_apply_token_to_event(
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf),
                                                /* replace_whitespace = */ event->esc != ESCAPE_NONE, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "symbolic link path", token->value, "SYMLINK", /* is_match = */ false);
+                        log_event_truncated(event, token, "symbolic link path", token->value, "SYMLINK", /* is_match = */ false);
                         break;
                 }
 
@@ -2686,7 +2732,7 @@ static int udev_rule_apply_token_to_event(
                 else
                         count = 0;
                 if (count > 0)
-                        log_event_debug(dev, token,
+                        log_event_debug(event, token,
                                         "Replaced %zu character(s) from result of SYMLINK=\"%s\"",
                                         count, token->value);
 
@@ -2708,17 +2754,17 @@ static int udev_rule_apply_token_to_event(
                                 if (r == -ENOMEM)
                                         return log_oom();
                                 if (r < 0)
-                                        log_event_warning_errno(dev, token, r, "Failed to remove devlink '%s', ignoring: %m", path);
+                                        log_event_warning_errno(event, token, r, "Failed to remove devlink '%s', ignoring: %m", path);
                                 else if (r > 0)
-                                        log_event_debug(dev, token, "Dropped SYMLINK '%s'", path);
+                                        log_event_debug(event, token, "Dropped SYMLINK '%s'", path);
                         } else {
                                 r = device_add_devlink(dev, path);
                                 if (r == -ENOMEM)
                                         return log_oom();
                                 if (r < 0)
-                                        log_event_warning_errno(dev, token, r, "Failed to add devlink '%s', ignoring: %m", path);
+                                        log_event_warning_errno(event, token, r, "Failed to add devlink '%s', ignoring: %m", path);
                                 else if (r > 0)
-                                        log_event_debug(dev, token, "Added SYMLINK '%s'", path);
+                                        log_event_debug(event, token, "Added SYMLINK '%s'", path);
                         }
                 }
                 break;
@@ -2732,7 +2778,7 @@ static int udev_rule_apply_token_to_event(
                     sd_device_get_syspath(dev, &val) >= 0) {
                         strscpyl_full(buf, sizeof(buf), &truncated, val, "/", key_name, NULL);
                         if (truncated) {
-                                log_event_warning(dev, token,
+                                log_event_warning(event, token,
                                                   "The path to the attribute '%s/%s' is too long, refusing to set the attribute.",
                                                   val, key_name);
                                 break;
@@ -2741,26 +2787,26 @@ static int udev_rule_apply_token_to_event(
 
                 r = attr_subst_subdir(buf);
                 if (r < 0) {
-                        log_event_error_errno(dev, token, r, "Could not find file matches '%s', ignoring: %m", buf);
+                        log_event_error_errno(event, token, r, "Could not find file matches '%s', ignoring: %m", buf);
                         break;
                 }
                 (void) udev_event_apply_format(event, token->value, value, sizeof(value), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "attribute value", token->value, "ATTR", /* is_match = */ false);
+                        log_event_truncated(event, token, "attribute value", token->value, "ATTR", /* is_match = */ false);
                         break;
                 }
 
                 if (EVENT_MODE_DESTRUCTIVE(event)) {
-                        log_event_debug(dev, token, "Writing ATTR{'%s'}=\"%s\".", buf, value);
+                        log_event_debug(event, token, "Writing ATTR{'%s'}=\"%s\".", buf, value);
                         r = write_string_file(buf, value,
                                               WRITE_STRING_FILE_VERIFY_ON_FAILURE |
                                               WRITE_STRING_FILE_DISABLE_BUFFER |
                                               WRITE_STRING_FILE_AVOID_NEWLINE |
                                               WRITE_STRING_FILE_VERIFY_IGNORE_NEWLINE);
                         if (r < 0)
-                                log_event_error_errno(dev, token, r, "Failed to write ATTR{%s}=\"%s\", ignoring: %m", buf, value);
+                                log_event_error_errno(event, token, r, "Failed to write ATTR{%s}=\"%s\", ignoring: %m", buf, value);
                 } else
-                        log_event_debug(dev, token, "Running in test mode, skipping writing ATTR{%s}=\"%s\".", buf, value);
+                        log_event_debug(event, token, "Running in test mode, skipping writing ATTR{%s}=\"%s\".", buf, value);
 
                 break;
         }
@@ -2770,14 +2816,14 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->data, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "sysctl entry name", token->data, "SYSCTL", /* is_match = */ false);
+                        log_event_truncated(event, token, "sysctl entry name", token->data, "SYSCTL", /* is_match = */ false);
                         break;
                 }
 
                 (void) udev_event_apply_format(event, token->value, value, sizeof(value), false, &truncated);
                 if (truncated) {
                         _cleanup_free_ char *key_with_name = strjoin("SYSCTL{", buf, "}");
-                        log_event_truncated(dev, token, "sysctl value", token->value,
+                        log_event_truncated(event, token, "sysctl value", token->value,
                                             key_with_name ?: "SYSCTL", /* is_match = */ false);
                         break;
                 }
@@ -2785,12 +2831,12 @@ static int udev_rule_apply_token_to_event(
                 sysctl_normalize(buf);
 
                 if (EVENT_MODE_DESTRUCTIVE(event)) {
-                        log_event_debug(dev, token, "Writing SYSCTL{%s}=\"%s\".", buf, value);
+                        log_event_debug(event, token, "Writing SYSCTL{%s}=\"%s\".", buf, value);
                         r = sysctl_write(buf, value);
                         if (r < 0)
-                                log_event_error_errno(dev, token, r, "Failed to write SYSCTL{%s}=\"%s\", ignoring: %m", buf, value);
+                                log_event_error_errno(event, token, r, "Failed to write SYSCTL{%s}=\"%s\", ignoring: %m", buf, value);
                 } else
-                        log_event_debug(dev, token, "Running in test mode, skipping writing SYSCTL{%s}=\"%s\".", buf, value);
+                        log_event_debug(event, token, "Running in test mode, skipping writing SYSCTL{%s}=\"%s\".", buf, value);
 
                 break;
         }
@@ -2810,7 +2856,7 @@ static int udev_rule_apply_token_to_event(
 
                 (void) udev_event_apply_format(event, token->value, buf, sizeof(buf), false, &truncated);
                 if (truncated) {
-                        log_event_truncated(dev, token, "command", token->value,
+                        log_event_truncated(event, token, "command", token->value,
                                             token->type == TK_A_RUN_BUILTIN ? "RUN{builtin}" : "RUN{program}",
                                             /* is_match = */ false);
                         break;
@@ -2824,11 +2870,11 @@ static int udev_rule_apply_token_to_event(
                 if (r == -ENOMEM)
                         return log_oom();
                 if (r < 0)
-                        return log_event_error_errno(dev, token, r, "Failed to store command '%s': %m", cmd);
+                        return log_event_error_errno(event, token, r, "Failed to store command '%s': %m", cmd);
 
                 TAKE_PTR(cmd);
 
-                log_event_debug(dev, token, "RUN '%s'", token->value);
+                log_event_debug(event, token, "RUN '%s'", token->value);
                 break;
         }
         case TK_A_OPTIONS_STATIC_NODE:
@@ -2839,10 +2885,6 @@ static int udev_rule_apply_token_to_event(
         }
 
         return true;
-}
-
-static bool token_is_for_parents(UdevRuleToken *token) {
-        return token->type >= TK_M_PARENTS_KERNEL && token->type <= TK_M_PARENTS_TAG;
 }
 
 static int udev_rule_apply_parent_token_to_event(UdevRuleToken *head_token, UdevEvent *event) {
