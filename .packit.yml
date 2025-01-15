@@ -7,6 +7,8 @@ files_to_sync:
   - .packit.yml
   - src: .packit_rpm/systemd.spec
     dest: systemd.spec
+upstream_package_name: systemd
+downstream_package_name: systemd
 # `git describe` returns in systemd's case 'v245-xxx' which breaks RPM version
 # detection (that expects 245-xxxx'). Let's tweak the version string accordingly
 upstream_tag_template: "v{version}"
