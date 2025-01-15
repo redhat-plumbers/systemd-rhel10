@@ -13,6 +13,7 @@
 #include "missing_syscall.h"
 #include "parse-util.h"
 #include "process-util.h"
+#include "set.h"
 #include "serialize.h"
 #include "strv.h"
 #include "tmpfile-util.h"
