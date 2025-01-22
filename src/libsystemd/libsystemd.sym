@@ -1063,4 +1063,5 @@ global:
 LIBSYSTEMD_258 {
 global:
         sd_varlink_get_current_method;
+        sd_varlink_get_description;
 } LIBSYSTEMD_257;
