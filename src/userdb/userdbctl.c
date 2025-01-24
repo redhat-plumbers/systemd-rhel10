@@ -1510,7 +1510,7 @@ static int parse_argv(int argc, char *argv[]) {
 
         /* If not mask was specified, use the all bits on mask */
         if (arg_disposition_mask == UINT64_MAX)
-                arg_disposition_mask = USER_DISPOSITION_MASK_MAX;
+                arg_disposition_mask = USER_DISPOSITION_MASK_ALL;
 
         if (arg_from_file)
                 arg_boundaries = false;
