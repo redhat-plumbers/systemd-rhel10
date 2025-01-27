@@ -1065,6 +1065,23 @@ int fputstrv(FILE *f, char * const *l, const char *separator, bool *space) {
 
 DEFINE_PRIVATE_HASH_OPS_FULL(string_strv_hash_ops, char, string_hash_func, string_compare_func, free, char*, strv_free);
 
+void string_strv_hashmap_remove(Hashmap *h, const char *key, const char *value) {
+        assert(key);
+
+        if (value) {
+                char **l = hashmap_get(h, key);
+                if (!l)
+                        return;
+
+                strv_remove(l, value);
+                if (!strv_isempty(l))
+                        return;
+        }
+
+        _unused_ _cleanup_free_ char *key_free = NULL;
+        strv_free(hashmap_remove2(h, key, (void**) &key_free));
+}
+
 static int string_strv_hashmap_put_internal(Hashmap *h, const char *key, const char *value) {
         char **l;
         int r;
