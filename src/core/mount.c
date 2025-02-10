@@ -1393,6 +1393,12 @@ static int mount_reload(Unit *u) {
         return 1;
 }
 
+static bool mount_can_reload(Unit *u) {
+        Mount *m = ASSERT_PTR(MOUNT(u));
+
+        return get_mount_parameters_fragment(m);
+}
+
 static int mount_serialize(Unit *u, FILE *f, FDSet *fds) {
         Mount *m = ASSERT_PTR(MOUNT(u));
 
@@ -2334,6 +2340,9 @@ static int mount_test_startable(Unit *u) {
                 return r;
         }
 
+        if (!get_mount_parameters_fragment(m))
+                return -ENOENT;
+
         return true;
 }
 
@@ -2448,7 +2457,9 @@ const UnitVTable mount_vtable = {
 
         .start = mount_start,
         .stop = mount_stop,
+
         .reload = mount_reload,
+        .can_reload = mount_can_reload,
 
         .clean = mount_clean,
         .can_clean = mount_can_clean,
