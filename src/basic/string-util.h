@@ -106,6 +106,8 @@ static inline const char* empty_or_dash_to_null(const char *p) {
 
 char* first_word(const char *s, const char *word) _pure_;
 
+char* strprepend(char **x, const char *s);
+
 char* strnappend(const char *s, const char *suffix, size_t length);
 
 char* strjoin_real(const char *x, ...) _sentinel_;
