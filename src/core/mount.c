@@ -45,9 +45,9 @@ static const UnitActiveState state_translation_table[_MOUNT_STATE_MAX] = {
         [MOUNT_MOUNTING_DONE]      = UNIT_ACTIVATING,
         [MOUNT_MOUNTED]            = UNIT_ACTIVE,
         [MOUNT_REMOUNTING]         = UNIT_RELOADING,
-        [MOUNT_UNMOUNTING]         = UNIT_DEACTIVATING,
         [MOUNT_REMOUNTING_SIGTERM] = UNIT_RELOADING,
         [MOUNT_REMOUNTING_SIGKILL] = UNIT_RELOADING,
+        [MOUNT_UNMOUNTING]         = UNIT_DEACTIVATING,
         [MOUNT_UNMOUNTING_SIGTERM] = UNIT_DEACTIVATING,
         [MOUNT_UNMOUNTING_SIGKILL] = UNIT_DEACTIVATING,
         [MOUNT_FAILED]             = UNIT_FAILED,
@@ -1038,6 +1038,8 @@ static void mount_enter_unmounting(Mount *m) {
                     MOUNT_UNMOUNTING_SIGKILL))
                 m->n_retry_umount = 0;
 
+        mount_unwatch_control_pid(m);
+
         m->control_command_id = MOUNT_EXEC_UNMOUNT;
         m->control_command = m->exec_command + MOUNT_EXEC_UNMOUNT;
 
@@ -1047,8 +1049,6 @@ static void mount_enter_unmounting(Mount *m) {
                 goto fail;
         }
 
-        mount_unwatch_control_pid(m);
-
         r = mount_spawn(m, m->control_command, &m->control_pid);
         if (r < 0) {
                 log_unit_warning_errno(UNIT(m), r, "Failed to spawn 'umount' task: %m");
@@ -1056,7 +1056,6 @@ static void mount_enter_unmounting(Mount *m) {
         }
 
         mount_set_state(m, MOUNT_UNMOUNTING);
-
         return;
 
 fail:
