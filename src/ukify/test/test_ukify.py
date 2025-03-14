@@ -52,6 +52,11 @@ except ValueError as e:
     print(str(e), file=sys.stderr)
     sys.exit(77)
 
+# Skip this test on riscv64 for now. It needs binutils 2.42 to work
+# on the architecture, but we only have 2.41 in RHEL 10
+if ukify.guess_efi_arch() == 'riscv64':
+    sys.exit(77)
+
 build_root = os.getenv('PROJECT_BUILD_ROOT')
 try:
     slow_tests = bool(int(os.getenv('SYSTEMD_SLOW_TESTS', '1')))
