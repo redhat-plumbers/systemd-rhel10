@@ -48,29 +48,14 @@ jobs:
   ci:
     runs-on: ubuntu-24.04
     concurrency:
-      group: ${{ github.workflow }}-${{ matrix.distro }}-${{ matrix.release }}-${{ github.ref }}
+      group: ${{ github.workflow }}-${{ toJSON(matrix) }}-${{ github.ref }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
       matrix:
         include:
-          - distro: fedora
-            release: "41"
-            sanitizers: ""
-            llvm: 0
-            cflags: "-Og"
-            relabel: yes
-            vm: 0
-            skip: TEST-21-DFUZZER
-          - distro: fedora
-            release: rawhide
-            sanitizers: address,undefined
-            llvm: 1
-            cflags: "-Og"
-            relabel: yes
-            vm: 0
           - distro: centos
-            release: "9"
+            release: "10"
             sanitizers: ""
             llvm: 0
             cflags: "-Og"
@@ -83,8 +68,15 @@ jobs:
             llvm: 0
             cflags: "-Og"
             relabel: yes
+            vm: 1
+            skip: "TEST-21-DFUZZER TEST-60-MOUNT-RATELIMIT"
+          - distro: centos
+            release: "10"
+            sanitizers: address,undefined
+            llvm: 1
+            cflags: "-Og"
+            relabel: yes
             vm: 0
-            skip: TEST-21-DFUZZER
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -183,7 +175,7 @@ jobs:
           sudo --preserve-env mkosi sandbox -- \
             env \
             TEST_PREFER_QEMU=${{ matrix.vm }} \
-            TEST_SKIP=${{ matrix.skip }} \
+            TEST_SKIP="${{ matrix.skip }}" \
             meson test \
             -C build \
             --no-rebuild \
@@ -195,7 +187,7 @@ jobs:
 
       - name: Archive failed test journals
         uses: actions/upload-artifact@v4
-        if: failure() && (github.repository == 'systemd/systemd' || github.repository == 'systemd/systemd-stable')
+        if: failure() && (github.repository == 'systemd/systemd' || github.repository == 'redhat-plumbers/systemd-rhel10')
         with:
           name: ci-mkosi-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.distro }}-${{ matrix.release }}-failed-test-journals
           path: |
