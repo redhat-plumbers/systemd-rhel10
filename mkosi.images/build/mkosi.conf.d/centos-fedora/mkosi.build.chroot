@@ -96,6 +96,7 @@ CXX_LD="$( ((LLVM)) && echo lld)" \
     --define "meson_build %{shrink:%{__meson} compile -C %{_vpath_builddir} -j %{_smp_build_ncpus} $( ((MESON_VERBOSE)) && echo --verbose) %{nil}}" \
     --define "meson_install %{shrink:DESTDIR=%{buildroot} %{__meson} install -C %{_vpath_builddir} --no-rebuild --quiet %{nil}}" \
     --define "meson_extra_configure_options $MKOSI_MESON_OPTIONS $MESON_OPTIONS" \
+    --define "rhel 10" \
     $( ((WITH_DEBUG)) || echo "--define=__brp_strip %{nil}") \
     --define "__brp_compress %{nil}" \
     --define "__brp_mangle_shebangs %{nil}" \
