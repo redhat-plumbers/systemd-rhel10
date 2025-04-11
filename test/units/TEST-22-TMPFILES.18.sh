@@ -24,7 +24,7 @@ test -f /tmp/somedir/somefile
 grep -q baz /tmp/somedir/somefile
 grep -q qux /tmp/someotherfile
 
-systemd-tmpfiles --purge - <<<"$c"
+systemd-tmpfiles --purge --destroy-data - <<<"$c"
 test ! -f /tmp/somedir/somefile
 test ! -d /tmp/somedir/
 grep -q qux /tmp/someotherfile
@@ -34,12 +34,12 @@ test ! -f /tmp/somedir/somefile
 test ! -d /tmp/somedir/
 grep -q qux /tmp/someotherfile
 
-systemd-tmpfiles --create --purge - <<<"$c"
+systemd-tmpfiles --create --destroy-data --purge - <<<"$c"
 test -f /tmp/somedir/somefile
 grep -q baz /tmp/somedir/somefile
 grep -q qux /tmp/someotherfile
 
-systemd-tmpfiles --purge - <<<"$c"
+systemd-tmpfiles --purge --destroy-data - <<<"$c"
 test ! -f /tmp/somedir/somefile
 test ! -d /tmp/somedir/
 grep -q qux /tmp/someotherfile
