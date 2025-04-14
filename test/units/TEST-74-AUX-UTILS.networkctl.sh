@@ -7,6 +7,11 @@ set -o pipefail
 # shellcheck source=test/units/util.sh
 . "$(dirname "$0")"/util.sh
 
+if ! systemctl -q list-unit-files systemd-networkd.service; then
+    echo "Missing systemd-networkd.service, skipping the test"
+    exit 0
+fi
+
 at_exit() {
     systemctl stop systemd-networkd
 

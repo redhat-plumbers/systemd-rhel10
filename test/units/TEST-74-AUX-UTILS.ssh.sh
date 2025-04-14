@@ -8,6 +8,11 @@ if ! command -v ssh &> /dev/null || ! command -v sshd &> /dev/null ; then
     exit 0
 fi
 
+if [[ ! -e /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf ]]; then
+    echo "Necessary configuration not found, skipping the test"
+    exit 0
+fi
+
 systemctl -q is-active sshd-unix-local.socket
 
 if test -e /dev/vsock ; then

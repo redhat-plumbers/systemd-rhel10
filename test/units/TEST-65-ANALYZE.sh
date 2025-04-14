@@ -882,17 +882,20 @@ systemd-analyze security --threshold=90 --offline=true \
                            --security-policy=/tmp/testfile.json \
                            --root=/tmp/img/ testfile.service
 
-# The strict profile adds a lot of sanboxing options
-systemd-analyze security --threshold=25 --offline=true \
-                           --security-policy=/tmp/testfile.json \
-                           --profile=strict \
-                           --root=/tmp/img/ testfile.service
+# We don't ship systemd-portable in RHEL 10, hence there are no profiles we could use in the tests below
+if [[ -e /usr/lib/systemd/portable/profile ]]; then
+    # The strict profile adds a lot of sanboxing options
+    systemd-analyze security --threshold=25 --offline=true \
+                               --security-policy=/tmp/testfile.json \
+                               --profile=strict \
+                               --root=/tmp/img/ testfile.service
 
-# The trusted profile doesn't add any sanboxing options
-(! systemd-analyze security --threshold=25 --offline=true \
-                           --security-policy=/tmp/testfile.json \
-                           --profile=/usr/lib/systemd/portable/profile/trusted/service.conf \
-                           --root=/tmp/img/ testfile.service)
+    # The trusted profile doesn't add any sanboxing options
+    (! systemd-analyze security --threshold=25 --offline=true \
+                               --security-policy=/tmp/testfile.json \
+                               --profile=/usr/lib/systemd/portable/profile/trusted/service.conf \
+                               --root=/tmp/img/ testfile.service)
+fi
 
 (! systemd-analyze security --threshold=50 --offline=true \
                            --security-policy=/tmp/testfile.json \
