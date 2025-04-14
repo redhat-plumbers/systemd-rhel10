@@ -323,7 +323,7 @@ foreach dirname : [
         'TEST-05-RLIMITS',
         'TEST-06-SELINUX',
         'TEST-07-PID1',
-        'TEST-08-INITRD',
+#        'TEST-08-INITRD', # we don't ship standalone systemd-shutdown
         'TEST-09-REBOOT',
         'TEST-13-NSPAWN',
         'TEST-15-DROPIN',
@@ -337,8 +337,8 @@ foreach dirname : [
         'TEST-24-CRYPTSETUP',
         'TEST-25-IMPORT',
         'TEST-26-SYSTEMCTL',
-        'TEST-29-PORTABLE',
-        'TEST-30-ONCLOCKCHANGE',
+#        'TEST-29-PORTABLE', # we don't ship systemd-portabled and friends
+#        'TEST-30-ONCLOCKCHANGE', # we don't ship systemd-timesyncd
         'TEST-31-DEVICE-ENUMERATION',
         'TEST-32-OOMPOLICY',
         'TEST-34-DYNAMICUSERMIGRATE',
@@ -347,8 +347,8 @@ foreach dirname : [
         'TEST-38-FREEZER',
         'TEST-43-PRIVATEUSER-UNPRIV',
         'TEST-44-LOG-NAMESPACE',
-        'TEST-45-TIMEDATE',
-        'TEST-46-HOMED',
+#        'TEST-45-TIMEDATE', # we don't ship systemd-timesyncd
+#        'TEST-46-HOMED', # we don't ship systemd-homed
         'TEST-50-DISSECT',
         'TEST-52-HONORFIRSTSHUTDOWN',
         'TEST-53-ISSUE-16347',
@@ -370,7 +370,7 @@ foreach dirname : [
         'TEST-72-SYSUPDATE',
         'TEST-73-LOCALE',
         'TEST-74-AUX-UTILS',
-        'TEST-75-RESOLVED',
+#        'TEST-75-RESOLVED', # we dont't ship systemd-networkd
         'TEST-76-SYSCTL',
         'TEST-78-SIGQUEUE',
         'TEST-79-MEMPRESS',
@@ -378,8 +378,8 @@ foreach dirname : [
         'TEST-81-GENERATORS',
         'TEST-82-SOFTREBOOT',
         'TEST-83-BTRFS',
-        'TEST-84-STORAGETM',
-        'TEST-85-NETWORK',
+#        'TEST-84-STORAGETM', # we don't ship systemd-storagetm
+#        'TEST-85-NETWORK', # we don't ship systemd-networkd
         'TEST-86-MULTI-PROFILE-UKI',
 ]
         subdir(dirname)
