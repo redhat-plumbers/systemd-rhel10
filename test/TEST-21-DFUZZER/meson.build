@@ -6,5 +6,6 @@ integration_tests += [
                 'timeout' : 3600,
                 'priority' : 50,
                 'vm' : true,
+                'cmdline' : integration_test_template['cmdline'] + ['systemd.log_level=info'],
         },
 ]
