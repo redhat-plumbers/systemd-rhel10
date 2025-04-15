@@ -560,9 +560,8 @@ def main() -> None:
         id = os.environ['GITHUB_RUN_ID']
         workflow = os.environ['GITHUB_WORKFLOW']
         iteration = os.environ['GITHUB_RUN_ATTEMPT']
-        artifact = (
-            f'ci-{workflow}-{id}-{iteration}-{summary.distribution}-{summary.release}-failed-test-journals'
-        )
+        identifier = os.environ['JOB_IDENTIFIER']
+        artifact = f'ci-{workflow}-{id}-{iteration}-{summary.distribution}-{summary.release}-{identifier}-failed-test-journals'  # noqa: E501
         ops += [f'gh run download {id} --name {artifact} -D ci/{artifact}']
         journal_file = Path(f'ci/{artifact}/test/journal/{name}.journal')
 
