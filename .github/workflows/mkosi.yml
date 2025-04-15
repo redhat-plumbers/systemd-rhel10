@@ -62,6 +62,7 @@ jobs:
             relabel: yes
             vm: 0
             skip: TEST-21-DFUZZER
+            identifier: regular-nspawn
           - distro: centos
             release: "10"
             sanitizers: ""
@@ -70,6 +71,7 @@ jobs:
             relabel: yes
             vm: 1
             skip: "TEST-21-DFUZZER TEST-60-MOUNT-RATELIMIT"
+            identifier: regular-vm
           - distro: centos
             release: "10"
             sanitizers: address,undefined
@@ -77,6 +79,7 @@ jobs:
             cflags: "-Og"
             relabel: yes
             vm: 0
+            identifier: sanitizers
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -176,6 +179,7 @@ jobs:
             env \
             TEST_PREFER_QEMU=${{ matrix.vm }} \
             TEST_SKIP="${{ matrix.skip }}" \
+            JOB_IDENTIFIER=${{ matrix.identifier }} \
             meson test \
             -C build \
             --no-rebuild \
@@ -189,7 +193,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure() && (github.repository == 'systemd/systemd' || github.repository == 'redhat-plumbers/systemd-rhel10')
         with:
-          name: ci-mkosi-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.distro }}-${{ matrix.release }}-failed-test-journals
+          name: ci-mkosi-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.distro }}-${{ matrix.release }}-${{ matrix.identifier }}-failed-test-journals
           path: |
             build/test/journal/*.journal
             build/meson-logs/*
