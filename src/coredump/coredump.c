@@ -29,6 +29,7 @@
 #include "coredump-vacuum.h"
 #include "dirent-util.h"
 #include "elf-util.h"
+#include "env-util.h"
 #include "escape.h"
 #include "fd-util.h"
 #include "fileio.h"
@@ -1811,6 +1812,9 @@ static int acquire_pid_mount_tree_fd(const Context *context, int *ret_fd) {
 
         assert(context);
         assert(ret_fd);
+
+        if (getenv_bool("SYSTEMD_COREDUMP_ALLOW_NAMESPACE_CHANGE") > 0)
+                arg_enter_namespace = true;
 
         if (!arg_enter_namespace) {
                 *ret_fd = -EHOSTDOWN;
