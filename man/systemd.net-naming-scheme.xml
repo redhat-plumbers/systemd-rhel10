@@ -558,6 +558,15 @@
           <xi:include href="version-info.xml" xpointer="rhel-10.0"/>
           </listitem>
         </varlistentry>
+
+        <varlistentry>
+          <term><constant>rhel-10.1</constant></term>
+
+          <listitem><para>Same as naming scheme <constant>rhel-10.0</constant>.</para>
+
+          <xi:include href="version-info.xml" xpointer="rhel-10.1"/>
+          </listitem>
+        </varlistentry>
       </variablelist>
       <para>By default <constant>rhel-10.0</constant> is used.</para>
 
