@@ -2979,6 +2979,16 @@ EOF
   </refsect1>
 
   <refsect1>
+    <title>Examples</title>
+    <para>
+            For examples how to use systemctl in comparison with old service and chkconfig commands please see:
+            <ulink url="https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/using_systemd_unit_files_to_customize_and_optimize_your_system/managing-systemd#managing-system-services-with-systemctl">
+                    Managing System Services
+            </ulink>
+    </para>
+  </refsect1>
+
+  <refsect1>
     <title>See Also</title>
     <para><simplelist type="inline">
       <member><citerefentry><refentrytitle>systemd</refentrytitle><manvolnum>1</manvolnum></citerefentry></member>
