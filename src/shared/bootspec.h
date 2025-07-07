@@ -98,7 +98,7 @@ typedef struct BootConfig {
                 .selected_entry = -1, \
         }
 
-const char* boot_entry_type_to_string(BootEntryType) _const_;
+const char* boot_entry_type_description_to_string(BootEntryType) _const_;
 const char* boot_entry_type_json_to_string(BootEntryType) _const_;
 BootEntryType boot_entry_type_from_string(const char *s) _pure_;
 
