@@ -33,7 +33,7 @@ static const char* const boot_entry_type_table[_BOOT_ENTRY_TYPE_MAX] = {
         [BOOT_ENTRY_LOADER_AUTO] = "Automatic",
 };
 
-DEFINE_STRING_TABLE_LOOKUP_TO_STRING(boot_entry_type, BootEntryType);
+DEFINE_STRING_TABLE_LOOKUP(boot_entry_type, BootEntryType);
 
 static const char* const boot_entry_type_json_table[_BOOT_ENTRY_TYPE_MAX] = {
         [BOOT_ENTRY_CONF]        = "type1",
