@@ -857,10 +857,10 @@ int session_start(Session *s, sd_bus_message *properties, sd_bus_error *error) {
                 return r;
 
         log_struct(s->class == SESSION_BACKGROUND ? LOG_DEBUG : LOG_INFO,
-                   "MESSAGE_ID=" SD_MESSAGE_SESSION_START_STR,
-                   "SESSION_ID=%s", s->id,
-                   "USER_ID=%s", s->user->user_record->user_name,
-                   "LEADER="PID_FMT, s->leader.pid,
+                   LOG_MESSAGE_ID(SD_MESSAGE_SESSION_START_STR),
+                   LOG_ITEM("SESSION_ID=%s", s->id),
+                   LOG_ITEM("USER_ID=%s", s->user->user_record->user_name),
+                   LOG_ITEM("LEADER="PID_FMT, s->leader.pid),
                    LOG_MESSAGE("New session %s of user %s.", s->id, s->user->user_record->user_name));
 
         if (!dual_timestamp_is_set(&s->timestamp))
@@ -928,9 +928,9 @@ static int session_stop_scope(Session *s, bool force) {
                  * Therefore session stop and session removal may be two distinct events.
                  * Session stop is quite significant on its own, let's log it. */
                 log_struct(s->class == SESSION_BACKGROUND ? LOG_DEBUG : LOG_INFO,
-                           "SESSION_ID=%s", s->id,
-                           "USER_ID=%s", s->user->user_record->user_name,
-                           "LEADER="PID_FMT, s->leader.pid,
+                           LOG_ITEM("SESSION_ID=%s", s->id),
+                           LOG_ITEM("USER_ID=%s", s->user->user_record->user_name),
+                           LOG_ITEM("LEADER="PID_FMT, s->leader.pid),
                            LOG_MESSAGE("Session %s logged out. Waiting for processes to exit.", s->id));
         }
 
@@ -985,10 +985,10 @@ int session_finalize(Session *s) {
 
         if (s->started)
                 log_struct(s->class == SESSION_BACKGROUND ? LOG_DEBUG : LOG_INFO,
-                           "MESSAGE_ID=" SD_MESSAGE_SESSION_STOP_STR,
-                           "SESSION_ID=%s", s->id,
-                           "USER_ID=%s", s->user->user_record->user_name,
-                           "LEADER="PID_FMT, s->leader.pid,
+                           LOG_MESSAGE_ID(SD_MESSAGE_SESSION_STOP_STR),
+                           LOG_ITEM("SESSION_ID=%s", s->id),
+                           LOG_ITEM("USER_ID=%s", s->user->user_record->user_name),
+                           LOG_ITEM("LEADER="PID_FMT, s->leader.pid),
                            LOG_MESSAGE("Removed session %s.", s->id));
 
         s->timer_event_source = sd_event_source_unref(s->timer_event_source);
