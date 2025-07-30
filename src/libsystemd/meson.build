@@ -292,6 +292,10 @@ libsystemd_tests += [
                 'type' : 'manual',
         },
         {
+                'sources' : files('sd-journal/test-journal-dump.c'),
+                'type' : 'manual',
+        },
+        {
                 'sources' : files('sd-journal/test-journal-verify.c'),
                 'timeout' : 90,
         },
