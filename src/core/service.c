@@ -2674,12 +2674,12 @@ static void service_enter_restart(Service *s, bool shortcut) {
         s->n_restarts++;
 
         log_unit_struct(UNIT(s), LOG_INFO,
-                        "MESSAGE_ID=" SD_MESSAGE_UNIT_RESTART_SCHEDULED_STR,
+                        LOG_MESSAGE_ID(SD_MESSAGE_UNIT_RESTART_SCHEDULED_STR),
                         LOG_UNIT_INVOCATION_ID(UNIT(s)),
                         LOG_UNIT_MESSAGE(UNIT(s),
                                          "Scheduled restart job%s, restart counter is at %u.",
                                          shortcut ? " immediately on client request" : "", s->n_restarts),
-                        "N_RESTARTS=%u", s->n_restarts);
+                        LOG_ITEM("N_RESTARTS=%u", s->n_restarts));
 
         service_set_state(s, SERVICE_AUTO_RESTART_QUEUED);
 
