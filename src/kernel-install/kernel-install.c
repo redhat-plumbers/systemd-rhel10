@@ -5,6 +5,7 @@
 #include <sys/utsname.h>
 
 #include "boot-entry.h"
+#include "bootspec.h"
 #include "build.h"
 #include "chase.h"
 #include "conf-files.h"
@@ -84,6 +85,7 @@ typedef struct Context {
         Action action;
         sd_id128_t machine_id;
         bool machine_id_is_random;
+        BootEntryType entry_type;
         KernelImageType kernel_image_type;
         Layout layout;
         char *layout_other;
@@ -421,6 +423,20 @@ static int context_set_plugins(Context *c, const char *s, const char *source) {
 static int context_set_initrds(Context *c, char* const* strv) {
         assert(c);
         return context_set_path_strv(c, strv, "command line", "initrds", &c->initrds);
+}
+
+static int context_set_entry_type(Context *c, const char *s) {
+        assert(c);
+        BootEntryType e;
+        if (isempty(s) || streq(s, "all")) {
+                c->entry_type = _BOOT_ENTRY_TYPE_INVALID;
+                return 0;
+        }
+        e = boot_entry_type_from_string(s);
+        if (e < 0)
+                return log_error_errno(e, "Invalid entry type: %s", s);
+        c->entry_type = e;
+        return 1;
 }
 
 static int context_load_environment(Context *c) {
@@ -977,6 +993,7 @@ static int context_build_environment(Context *c) {
                                  "KERNEL_INSTALL_LAYOUT",           context_get_layout(c),
                                  "KERNEL_INSTALL_INITRD_GENERATOR", strempty(c->initrd_generator),
                                  "KERNEL_INSTALL_UKI_GENERATOR",    strempty(c->uki_generator),
+                                 "KERNEL_INSTALL_BOOT_ENTRY_TYPE",  boot_entry_type_to_string(c->entry_type),
                                  "KERNEL_INSTALL_STAGING_AREA",     c->staging_area);
         if (r < 0)
                 return log_error_errno(r, "Failed to build environment variables for plugins: %m");
@@ -1482,8 +1499,11 @@ static int help(void) {
                "     --boot-path=PATH          Path to the $BOOT partition\n"
                "     --make-entry-directory=yes|no|auto\n"
                "                               Create $BOOT/ENTRY-TOKEN/ directory\n"
+               "     --entry-type=type1|type2|all\n"
+               "                               Operate only on the specified bootloader\n"
+               "                               entry type\n"
                "     --entry-token=machine-id|os-id|os-image-id|auto|literal:…\n"
-               "                               Entry token to use for this installation\n"
+               "                               Entry token to be used for this installation\n"
                "     --no-pager                Do not pipe inspect output into a pager\n"
                "     --json=pretty|short|off   Generate JSON output\n"
                "     --no-legend               Do not show the headers and footers\n"
@@ -1519,6 +1539,7 @@ static int parse_argv(int argc, char *argv[], Context *c) {
                 ARG_ROOT,
                 ARG_IMAGE,
                 ARG_IMAGE_POLICY,
+                ARG_BOOT_ENTRY_TYPE,
         };
         static const struct option options[] = {
                 { "help",                 no_argument,       NULL, 'h'                      },
@@ -1534,6 +1555,7 @@ static int parse_argv(int argc, char *argv[], Context *c) {
                 { "image",                required_argument, NULL, ARG_IMAGE                },
                 { "image-policy",         required_argument, NULL, ARG_IMAGE_POLICY         },
                 { "no-legend",            no_argument,       NULL, ARG_NO_LEGEND            },
+                { "entry-type",           required_argument, NULL, ARG_BOOT_ENTRY_TYPE      },
                 {}
         };
         int t, r;
@@ -1617,6 +1639,12 @@ static int parse_argv(int argc, char *argv[], Context *c) {
                                 return r;
                         break;
 
+                case ARG_BOOT_ENTRY_TYPE:
+                        r = context_set_entry_type(c, optarg);
+                        if (r < 0)
+                                return r;
+                        break;
+
                 case '?':
                         return -EINVAL;
 
@@ -1644,6 +1672,7 @@ static int run(int argc, char* argv[]) {
                 .action = _ACTION_INVALID,
                 .kernel_image_type = KERNEL_IMAGE_TYPE_UNKNOWN,
                 .layout = _LAYOUT_INVALID,
+                .entry_type = _BOOT_ENTRY_TYPE_INVALID,
                 .entry_token_type = BOOT_ENTRY_TOKEN_AUTO,
         };
         _cleanup_(loop_device_unrefp) LoopDevice *loop_device = NULL;
