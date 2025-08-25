@@ -997,12 +997,14 @@ _public_ PAM_EXTERN int pam_sm_open_session(
         desktop = getenv_harder(handle, "XDG_SESSION_DESKTOP", desktop_pam);
         incomplete = getenv_harder_bool(handle, "XDG_SESSION_INCOMPLETE", false);
 
+        /* The session class can be overridden via the PAM environment, and we try to honor that selection. */
         if (streq_ptr(service, "systemd-user")) {
                 /* If we detect that we are running in the "systemd-user" PAM stack, then let's patch the class to
                  * 'manager' if not set, simply for robustness reasons. */
                 type = "unspecified";
-                class = IN_SET(user_record_disposition(ur), USER_INTRINSIC, USER_SYSTEM, USER_DYNAMIC) ?
-                        "manager-early" : "manager";
+                if (isempty(class))
+                        class = IN_SET(user_record_disposition(ur), USER_INTRINSIC, USER_SYSTEM, USER_DYNAMIC) ?
+                                "manager-early" : "manager";
                 tty = NULL;
 
         } else if (tty && strchr(tty, ':')) {
@@ -1018,19 +1020,22 @@ _public_ PAM_EXTERN int pam_sm_open_session(
                  * (as they otherwise even try to update it!) — but cron doesn't actually allocate a TTY for its forked
                  * off processes.) */
                 type = "unspecified";
-                class = "background";
+                if (isempty(class))
+                        class = "background";
                 tty = NULL;
 
         } else if (streq_ptr(tty, "ssh")) {
                 /* ssh has been setting PAM_TTY to "ssh" (for the same reason as cron does this, see above. For further
                  * details look for "PAM_TTY_KLUDGE" in the openssh sources). */
                 type = "tty";
-                class = "user";
+                if (isempty(class))
+                        class = "user";
                 tty = NULL; /* This one is particularly sad, as this means that ssh sessions — even though usually
                              * associated with a pty — won't be tracked by their tty in logind. This is because ssh
                              * does the PAM session registration early for new connections, and registers a pty only
                              * much later (this is because it doesn't know yet if it needs one at all, as whether to
                              * register a pty or not is negotiated much later in the protocol). */
+
 
         } else if (tty)
                 /* Chop off leading /dev prefix that some clients specify, but others do not. */
