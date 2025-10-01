@@ -75,7 +75,7 @@ jobs:
           - distro: centos
             release: "10"
             sanitizers: address,undefined
-            llvm: 1
+            llvm: 0
             cflags: "-Og"
             relabel: yes
             vm: 0
