@@ -669,6 +669,16 @@
            <xi:include href="version-info.xml" xpointer="rhel-9.7"/>
            </listitem>
         </varlistentry>
+
+        <varlistentry>
+           <term><constant>rhel-9.8</constant></term>
+
+           <listitem>
+           <para>PCI slot number is now read from <constant>firmware_node/sun</constant> sysfs file.</para>
+           
+           <xi:include href="version-info.xml" xpointer="rhel-9.8"/>
+           </listitem>
+        </varlistentry>
       </variablelist>
       </refsect2>
 
