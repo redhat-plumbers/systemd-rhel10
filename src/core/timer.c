@@ -890,7 +890,7 @@ static int timer_can_clean(Unit *u, ExecCleanMask *ret) {
         return 0;
 }
 
-static int timer_can_start(Unit *u) {
+static int timer_test_startable(Unit *u) {
         Timer *t = ASSERT_PTR(TIMER(u));
         int r;
 
@@ -900,7 +900,7 @@ static int timer_can_start(Unit *u) {
                 return r;
         }
 
-        return 1;
+        return true;
 }
 
 static void activation_details_timer_serialize(ActivationDetails *details, FILE *f) {
@@ -1077,7 +1077,7 @@ const UnitVTable timer_vtable = {
 
         .bus_set_property = bus_timer_set_property,
 
-        .can_start = timer_can_start,
+        .test_startable = timer_test_startable,
 };
 
 const ActivationDetailsVTable activation_details_timer_vtable = {
