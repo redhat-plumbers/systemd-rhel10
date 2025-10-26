@@ -919,7 +919,8 @@ static int submit_coredump(
                                                 root,
                                                 /* fork_disable_dump= */ skip, /* avoid loops */
                                                 &stacktrace,
-                                                &json_metadata);
+                                                &json_metadata,
+                                                /* ret_dlopen_metadata= */ NULL);
                 }
         }
 
