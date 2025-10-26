@@ -21,6 +21,7 @@
 #include "analyze-compare-versions.h"
 #include "analyze-condition.h"
 #include "analyze-critical-chain.h"
+#include "analyze-dlopen-metadata.h"
 #include "analyze-dot.h"
 #include "analyze-dump.h"
 #include "analyze-exit-status.h"
@@ -593,9 +594,9 @@ static int parse_argv(int argc, char *argv[]) {
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
                                        "Option --offline= requires one or more units to perform a security review.");
 
-        if (sd_json_format_enabled(arg_json_format_flags) && !STRPTR_IN_SET(argv[optind], "security", "inspect-elf", "plot", "fdstore", "pcrs", "architectures", "capability", "exit-status"))
+        if (sd_json_format_enabled(arg_json_format_flags) && !STRPTR_IN_SET(argv[optind], "security", "inspect-elf", "dlopen-metadata", "plot", "fdstore", "pcrs", "architectures", "capability", "exit-status"))
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
-                                       "Option --json= is only supported for security, inspect-elf, plot, fdstore, pcrs, architectures, capability, exit-status right now.");
+                                       "Option --json= is only supported for security, inspect-elf, dlopen-metadata, plot, fdstore, pcrs, architectures, capability, exit-status right now.");
 
         if (arg_threshold != 100 && !streq_ptr(argv[optind], "security"))
                 return log_error_errno(SYNTHETIC_ERRNO(EINVAL),
@@ -691,6 +692,7 @@ static int run(int argc, char *argv[]) {
                 { "srk",               VERB_ANY, 1,        0,            verb_srk               },
                 { "architectures",     VERB_ANY, VERB_ANY, 0,            verb_architectures     },
                 { "smbios11",          VERB_ANY, 1,        0,            verb_smbios11          },
+                { "dlopen-metadata",   2,        2,        0,            verb_dlopen_metadata   },
                 {}
         };
 
