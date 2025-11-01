@@ -190,7 +190,7 @@ jobs:
             "${MAX_LINES[@]}"
 
       - name: Archive failed test journals
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure() && (github.repository == 'systemd/systemd' || github.repository == 'redhat-plumbers/systemd-rhel10')
         with:
           name: ci-mkosi-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.distro }}-${{ matrix.release }}-${{ matrix.identifier }}-failed-test-journals

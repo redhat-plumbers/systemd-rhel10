@@ -22,7 +22,7 @@ jobs:
         uses: redhat-plumbers-in-action/gather-pull-request-metadata@v1
 
       - name: Upload Pull Request Metadata artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Pull Request Metadata
           path: ${{ steps.metadata.outputs.metadata-file }}
