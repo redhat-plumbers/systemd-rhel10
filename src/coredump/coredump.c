@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <sys/mount.h>
+#include <sys/prctl.h>
 #include <sys/statvfs.h>
 #include <sys/auxv.h>
 #include <sys/xattr.h>
@@ -2015,7 +2016,7 @@ static int run(int argc, char *argv[]) {
         log_set_target_and_open(LOG_TARGET_KMSG);
 
         /* Make sure we never enter a loop */
-        (void) set_dumpable(SUID_DUMP_DISABLE);
+        (void) prctl(PR_SET_DUMPABLE, SUID_DUMP_DISABLE);
 
         /* Ignore all parse errors */
         (void) parse_config();
