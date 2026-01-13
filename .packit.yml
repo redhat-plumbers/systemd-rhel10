@@ -24,7 +24,8 @@ actions:
 
   post-upstream-clone:
     # Use the CentOS Stream 10 specfile
-    - "git clone -b c10s https://gitlab.com/redhat/centos-stream/rpms/systemd.git .packit_rpm --depth=1"
+    # Pin this to the latest 10.1 version (systemd-257-13)
+    - "git clone https://gitlab.com/redhat/centos-stream/rpms/systemd.git .packit_rpm --depth=1 --revision=8adcfa40b029b11bb2512c8cc7e6301ee3a77df9"
     # Drop the "sources" file so rebase-helper doesn't think we're a dist-git
     - "rm -fv .packit_rpm/sources"
     # Drop all patches, since they're already included in the tarball
