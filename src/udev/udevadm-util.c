@@ -149,6 +149,12 @@ static int search_rules_file_in_conf_dirs(const char *s, const char *root, char 
                 if (!path)
                         return log_oom();
 
+                r = null_or_empty_path_with_root(path, root);
+                if (r > 0) {
+                        log_warning("File '%s%s' is a mask, ignoring.", empty_to_root(root), skip_leading_slash(path));
+                        return 1; /* Found masked file. */
+                }
+
                 r = chase(path, root, CHASE_PREFIX_ROOT | CHASE_MUST_BE_REGULAR, &resolved, /* ret_fd = */ NULL);
                 if (r == -ENOENT)
                         continue;
@@ -182,6 +188,11 @@ static int search_rules_file(const char *s, const char *root, char ***files) {
         r = chase_and_stat(s, root, CHASE_PREFIX_ROOT, &resolved, &st);
         if (r < 0)
                 return log_error_errno(r, "Failed to chase \"%s\": %m", s);
+
+        if (null_or_empty(&st)) {
+                log_warning("File '%s%s' is a mask, ignoring.", empty_to_root(root), skip_leading_slash(s));
+                return 0; /* Found masked file. */
+        }
 
         r = stat_verify_regular(&st);
         if (r == -EISDIR) {
