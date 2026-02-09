@@ -290,11 +290,34 @@ test_syntax_error 'OWNER-="b"' 'Invalid operator for OWNER.'
 test_syntax_error 'OWNER!="b"' 'Invalid operator for OWNER.'
 test_syntax_error 'OWNER+="0"' "OWNER key takes '=' or ':=' operator, assuming '='."
 test_syntax_error 'OWNER=":nosuchuser:"' "Unknown user ':nosuchuser:', ignoring."
+# nonexistent user
+if ! getent passwd nosuchuser >/dev/null; then
+    test_syntax_error 'OWNER="nosuchuser"' "Unknown user 'nosuchuser', ignoring."
+fi
+# regular user
+if getent passwd testuser >/dev/null; then
+    echo 'OWNER="testuser"' >"${rules}"
+    udevadm verify "${rules}"
+    echo "OWNER=\"$(id -u testuser)\"" >"${rules}"
+    udevadm verify "${rules}"
+fi
 test_syntax_error 'GROUP{a}="b"' 'Invalid attribute for GROUP.'
 test_syntax_error 'GROUP-="b"' 'Invalid operator for GROUP.'
 test_syntax_error 'GROUP!="b"' 'Invalid operator for GROUP.'
 test_syntax_error 'GROUP+="0"' "GROUP key takes '=' or ':=' operator, assuming '='."
 test_syntax_error 'GROUP=":nosuchgroup:"' "Unknown group ':nosuchgroup:', ignoring."
+# nonexistent group
+if ! getent group nosuchgroup >/dev/null; then
+    test_syntax_error 'GROUP="nosuchgroup"' "Unknown group 'nosuchgroup', ignoring."
+fi
+# regular group
+if getent group testuser >/dev/null; then
+    echo 'GROUP="testuser"' >"${rules}"
+    udevadm verify "${rules}"
+
+    echo "GROUP=\"$(id -g testuser)\"" >"${rules}"
+    udevadm verify "${rules}"
+fi
 test_syntax_error 'MODE{a}="b"' 'Invalid attribute for MODE.'
 test_syntax_error 'MODE-="b"' 'Invalid operator for MODE.'
 test_syntax_error 'MODE!="b"' 'Invalid operator for MODE.'

@@ -2,6 +2,8 @@
 
 #include <ctype.h>
 
+#include "sd-messages.h"
+
 #include "alloc-util.h"
 #include "architecture.h"
 #include "conf-files.h"
@@ -216,6 +218,26 @@ static bool token_is_for_parents(UdevRuleToken *token) {
 }
 
 /*** Logging helpers ***/
+
+#define log_udev_event_syntax(event, token, level, message_id, fmt, ...) \
+        ({                                                              \
+                UdevEvent *_event = (event);                            \
+                UdevRuleToken *_token = ASSERT_PTR(token);              \
+                int _level = (level);                                   \
+                sd_device *_d = token_is_for_parents(_token) ? _event->dev_parent : _event->dev; \
+                const char *_sysname = NULL;                            \
+                                                                        \
+                if (_d && log_get_max_level() >= LOG_PRI(_level))       \
+                        (void) sd_device_get_sysname(_d, &_sysname);    \
+                log_struct(_level,                                      \
+                           LOG_MESSAGE("%s:%u %s:" fmt,                 \
+                                       strna(_token->rule_line->rule_file ? _token->rule_line->rule_file->filename : NULL), \
+                                       _token->rule_line->line_number,  \
+                                       _token->token_str,               \
+                                       __VA_ARGS__),                    \
+                           LOG_MESSAGE_ID(message_id),                  \
+                           LOG_ITEM("DEVICE=%s", strempty(_sysname)));  \
+        })
 
 #define _log_udev_rule_file_full(device, device_u, file, file_u, line_nr, level, level_u, error, fmt, ...) \
         ({                                                              \
@@ -501,8 +523,11 @@ static int rule_resolve_user(UdevRuleLine *rule_line, const char *name, uid_t *r
                 return 0;
         }
         if (!uid_is_system(uid))
-                return log_line_error_errno(rule_line, SYNTHETIC_ERRNO(EINVAL),
-                                            "User '%s' is not a system user (UID="UID_FMT"), ignoring.", name, uid);
+                log_struct(LOG_WARNING,
+                           LOG_MESSAGE("%s:%u User %s configured to own a device node is not a system user. "
+                                       "Support for device node ownership by non-system accounts is deprecated and will be removed in the future.",
+                                       rule_line->rule_file->filename, rule_line->line_number, name),
+                           LOG_MESSAGE_ID(SD_MESSAGE_SYSTEM_ACCOUNT_REQUIRED_STR));
 
         n = strdup(name);
         if (!n)
@@ -544,8 +569,11 @@ static int rule_resolve_group(UdevRuleLine *rule_line, const char *name, gid_t *
                 return 0;
         }
         if (!gid_is_system(gid))
-                return log_line_error_errno(rule_line, SYNTHETIC_ERRNO(EINVAL),
-                                            "Group '%s' is not a system group (GID="GID_FMT"), ignoring.", name, gid);
+                log_struct(LOG_WARNING,
+                           LOG_MESSAGE("%s:%u Group %s configured to own a device node is not a system group. "
+                                       "Support for device node ownership by non-system accounts is deprecated and will be removed in the future.",
+                                       rule_line->rule_file->filename, rule_line->line_number, name),
+                           LOG_MESSAGE_ID(SD_MESSAGE_SYSTEM_ACCOUNT_REQUIRED_STR));
 
         n = strdup(name);
         if (!n)
@@ -2679,9 +2707,14 @@ static int udev_rule_apply_token_to_event(
                         log_event_error_errno(event, token, r, "Unknown user \"%s\", ignoring.", owner);
                 else if (r < 0)
                         log_event_error_errno(event, token, r, "Failed to resolve user \"%s\", ignoring: %m", owner);
-                else if (!uid_is_system(uid))
-                        log_event_error(event, token, "User \"%s\" is not a system user (UID="UID_FMT"), ignoring.", owner, uid);
                 else {
+                        if (!uid_is_system(uid))
+                                log_udev_event_syntax(event, token, LOG_WARNING,
+                                                      SD_MESSAGE_SYSTEM_ACCOUNT_REQUIRED_STR,
+                                                      "User %s configured to own a device node is not a system user. "
+                                                      "Support for device node ownership by non-system accounts is deprecated and will be removed in the future.",
+                                                      owner);
+
                         event->uid = uid;
                         log_event_debug(event, token, "Set owner: %s(%u)", owner, event->uid);
                 }
@@ -2706,9 +2739,14 @@ static int udev_rule_apply_token_to_event(
                         log_event_error_errno(event, token, r, "Unknown group \"%s\", ignoring.", group);
                 else if (r < 0)
                         log_event_error_errno(event, token, r, "Failed to resolve group \"%s\", ignoring: %m", group);
-                else if (!gid_is_system(gid))
-                        log_event_error(event, token, "Group \"%s\" is not a system group (GID="GID_FMT"), ignoring.", group, gid);
                 else {
+                        if (!gid_is_system(gid))
+                                log_udev_event_syntax(event, token, LOG_WARNING,
+                                                      SD_MESSAGE_SYSTEM_ACCOUNT_REQUIRED_STR,
+                                                      "Group %s configured to own a device node is not a system group. "
+                                                      "Support for device node ownership by non-system accounts is deprecated and will be removed in the future.",
+                                                      group);
+
                         event->gid = gid;
                         log_event_debug(event, token, "Set group: %s(%u)", group, event->gid);
                 }
