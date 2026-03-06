@@ -19,9 +19,9 @@ u test-74-userdbctl - "Test user for TEST-74-AUX-UTILS.userdbctl.sh" / /bin/bash
 EOF
 
 # Make sure that -F shows same data as if we'd ask directly
-userdbctl user root -j | userdbctl -F- user  | cmp - <(userdbctl user root)
-userdbctl user test-74-userdbctl -j | userdbctl -F- user  | cmp - <(userdbctl user test-74-userdbctl)
-userdbctl user 65534 -j | userdbctl -F- user  | cmp - <(userdbctl user 65534)
+userdbctl user root -j | userdbctl -F- user | cmp - <(userdbctl user root)
+userdbctl user test-74-userdbctl -j | userdbctl -F- user | cmp - <(userdbctl user test-74-userdbctl)
+userdbctl user 65534 -j | userdbctl -F- user | cmp - <(userdbctl user 65534)
 
 userdbctl group root -j | userdbctl -F- group  | cmp - <(userdbctl group root)
 userdbctl group test-74-userdbctl -j | userdbctl -F- group  | cmp - <(userdbctl group test-74-userdbctl)
