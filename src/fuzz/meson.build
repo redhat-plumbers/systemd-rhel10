@@ -11,6 +11,7 @@ simple_fuzzers += files(
         'fuzz-json.c',
         'fuzz-time-util.c',
         'fuzz-udev-database.c',
+        'fuzz-user-record.c',
         'fuzz-varlink.c',
         'fuzz-varlink-idl.c',
 )
