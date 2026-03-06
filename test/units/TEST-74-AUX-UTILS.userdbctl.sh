@@ -26,3 +26,7 @@ userdbctl user 65534 -j | userdbctl -F- user | cmp - <(userdbctl user 65534)
 userdbctl group root -j | userdbctl -F- group  | cmp - <(userdbctl group root)
 userdbctl group test-74-userdbctl -j | userdbctl -F- group  | cmp - <(userdbctl group test-74-userdbctl)
 userdbctl group 65534 -j | userdbctl -F- group  | cmp - <(userdbctl group 65534)
+
+# Probe specific user records
+echo '{"userName":"weightmin","cpuWeight":1,"ioWeight":1}' | userdbctl -F -
+echo '{"userName":"weightmax","cpuWeight":10000,"ioWeight":10000}' | userdbctl -F -
