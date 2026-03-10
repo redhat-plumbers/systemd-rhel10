@@ -1041,6 +1041,7 @@ manpages = [
    'systemd-pcrfs-root.service',
    'systemd-pcrfs@.service',
    'systemd-pcrmachine.service',
+   'systemd-pcrosseparator.service',
    'systemd-pcrphase-initrd.service',
    'systemd-pcrphase-sysinit.service'],
   'ENABLE_BOOTLOADER HAVE_OPENSSL HAVE_TPM2'],

@@ -28,7 +28,7 @@ static char *arg_tpm2_device = NULL;
 static char **arg_banks = NULL;
 static char *arg_file_system = NULL;
 static bool arg_machine_id = false;
-static unsigned arg_pcr_index = UINT_MAX;
+static uint32_t arg_pcr_mask = 0;
 static bool arg_varlink = false;
 static Tpm2UserspaceEventType arg_event_type = _TPM2_USERSPACE_EVENT_TYPE_INVALID;
 
@@ -125,11 +125,16 @@ static int parse_argv(int argc, char *argv[]) {
                 }
 
                 case ARG_PCR:
+                        if (isempty(optarg)) {
+                                arg_pcr_mask = 0;
+                                break;
+                        }
+
                         r = tpm2_pcr_index_from_string(optarg);
                         if (r < 0)
                                 return log_error_errno(r, "Failed to parse PCR index: %s", optarg);
 
-                        arg_pcr_index = r;
+                        arg_pcr_mask |= INDEX_TO_MASK(uint32_t, r);
                         break;
 
                 case ARG_TPM2_DEVICE: {
@@ -188,15 +193,15 @@ static int parse_argv(int argc, char *argv[]) {
                 return log_error_errno(r, "Failed to check if invoked in Varlink mode: %m");
         if (r > 0)
                 arg_varlink = true;
-        else if (arg_pcr_index == UINT_MAX)
-                arg_pcr_index = (arg_file_system || arg_machine_id) ?
-                        TPM2_PCR_SYSTEM_IDENTITY : /* → PCR 15 */
-                        TPM2_PCR_KERNEL_BOOT; /* → PCR 11 */
+        else if (arg_pcr_mask == 0)
+                arg_pcr_mask = (arg_file_system || arg_machine_id) ?
+                        INDEX_TO_MASK(uint32_t, TPM2_PCR_SYSTEM_IDENTITY) : /* → PCR 15 */
+                        INDEX_TO_MASK(uint32_t, TPM2_PCR_KERNEL_BOOT); /* → PCR 11 */
 
         return 1;
 }
 
-static int determine_banks(Tpm2Context *c, unsigned target_pcr_nr) {
+static int determine_banks(Tpm2Context *c, uint32_t target_pcr_mask) {
         _cleanup_strv_free_ char **l = NULL;
         int r;
 
@@ -205,7 +210,7 @@ static int determine_banks(Tpm2Context *c, unsigned target_pcr_nr) {
         if (!strv_isempty(arg_banks)) /* Explicitly configured? Then use that */
                 return 0;
 
-        r = tpm2_get_good_pcr_banks_strv(c, UINT32_C(1) << target_pcr_nr, &l);
+        r = tpm2_get_good_pcr_banks_strv(c, target_pcr_mask, &l);
         if (r < 0)
                 return log_error_errno(r, "Could not verify pcr banks: %m");
 
@@ -213,15 +218,17 @@ static int determine_banks(Tpm2Context *c, unsigned target_pcr_nr) {
         return 0;
 }
 
-static int extend_now(unsigned pcr, const void *data, size_t size, Tpm2UserspaceEventType event) {
+static int extend_now(uint32_t pcr_mask, const void *data, size_t size, Tpm2UserspaceEventType event) {
         _cleanup_(tpm2_context_unrefp) Tpm2Context *c = NULL;
         int r;
+
+        assert(pcr_mask != 0);
 
         r = tpm2_context_new_or_warn(arg_tpm2_device, &c);
         if (r < 0)
                 return r;
 
-        r = determine_banks(c, pcr);
+        r = determine_banks(c, pcr_mask);
         if (r < 0)
                 return r;
         if (strv_isempty(arg_banks)) /* Still none? */
@@ -246,18 +253,20 @@ static int extend_now(unsigned pcr, const void *data, size_t size, Tpm2Userspace
                         return log_oom();
         }
 
-        log_debug("Measuring '%s' into PCR index %u, banks %s.", safe, pcr, joined_banks);
+        BIT_FOREACH(pcr, pcr_mask) {
+                log_debug("Measuring '%s' into PCR index %i, banks %s.", safe, pcr, joined_banks);
 
-        r = tpm2_extend_bytes(c, arg_banks, pcr, data, size, /* secret= */ NULL, /* secret_size= */ 0, event, safe);
-        if (r < 0)
-                return log_error_errno(r, "Could not extend PCR: %m");
+                r = tpm2_extend_bytes(c, arg_banks, pcr, data, size, /* secret= */ NULL, /* secret_size= */ 0, event, safe);
+                if (r < 0)
+                        return log_error_errno(r, "Could not extend PCR: %m");
 
-        log_struct(LOG_INFO,
-                   LOG_MESSAGE_ID(SD_MESSAGE_TPM_PCR_EXTEND_STR),
-                   LOG_MESSAGE("Extended PCR index %u with '%s' (banks %s).", pcr, safe, joined_banks),
-                   LOG_ITEM("MEASURING=%s", safe),
-                   LOG_ITEM("PCR=%u", pcr),
-                   LOG_ITEM("BANKS=%s", joined_banks));
+                log_struct(LOG_INFO,
+                           LOG_MESSAGE_ID(SD_MESSAGE_TPM_PCR_EXTEND_STR),
+                           LOG_MESSAGE("Extended PCR index %i with '%s' (banks %s).", pcr, safe, joined_banks),
+                           LOG_ITEM("MEASURING=%s", safe),
+                           LOG_ITEM("PCR=%i", pcr),
+                           LOG_ITEM("BANKS=%s", joined_banks));
+        }
 
         return 0;
 }
@@ -301,9 +310,9 @@ static int vl_method_extend(sd_varlink *link, sd_json_variant *parameters, sd_va
                 if (p.data.iov_base)
                         return sd_varlink_error_invalid_parameter_name(link, "data");
 
-                r = extend_now(p.pcr, p.text, strlen(p.text), _TPM2_USERSPACE_EVENT_TYPE_INVALID);
+                r = extend_now(INDEX_TO_MASK(uint32_t, p.pcr), p.text, strlen(p.text), _TPM2_USERSPACE_EVENT_TYPE_INVALID);
         } else if (p.data.iov_base)
-                r = extend_now(p.pcr, p.data.iov_base, p.data.iov_len, _TPM2_USERSPACE_EVENT_TYPE_INVALID);
+                r = extend_now(INDEX_TO_MASK(uint32_t, p.pcr), p.data.iov_base, p.data.iov_len, _TPM2_USERSPACE_EVENT_TYPE_INVALID);
         else
                 return sd_varlink_error_invalid_parameter_name(link, "text");
         if (r < 0)
@@ -403,7 +412,7 @@ static int run(int argc, char *argv[]) {
                 return EXIT_SUCCESS;
         }
 
-        r = extend_now(arg_pcr_index, word, strlen(word), event);
+        r = extend_now(arg_pcr_mask, word, strlen(word), event);
         if (r < 0)
                 return log_error_errno(r, "Failed to create TPM2 context: %m");
 
