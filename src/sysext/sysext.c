@@ -44,6 +44,7 @@
 #include "parse-util.h"
 #include "path-util.h"
 #include "pretty-print.h"
+#include "proc-cmdline.h"
 #include "process-util.h"
 #include "rm-rf.h"
 #include "selinux-util.h"
@@ -2584,6 +2585,22 @@ static int run(int argc, char *argv[]) {
                                     image_class_info[arg_image_class].mode_env, env_var);
                 else
                         arg_mutable = r;
+        }
+
+        /* PROC_CMDLINE_STRIP_RD_PREFIX cannot be used here as we need to be able to distinguish between
+         * rd.systemd.{sysext,confext} and systemd.{sysext,confext} in the initrd where they are both used
+         * and have different meaning. */
+        const char *string_class = image_class_to_string(arg_image_class);
+        const char *cmdline_opt = strjoina(in_initrd() && !arg_root ? "rd." : "", "systemd.", string_class);
+
+        bool enabled;
+        r = proc_cmdline_get_bool(cmdline_opt, PROC_CMDLINE_TRUE_WHEN_MISSING, &enabled);
+        if (r < 0)
+                log_debug_errno(r, "Failed to check '%s=' kernel command line option, proceeding: %m", cmdline_opt);
+        else if (!enabled && invoked_by_systemd()) {
+                /* Kernel command line option should not affect manual invocation. */
+                log_notice("Disabled by the kernel command line option '%s=', skipping execution.", cmdline_opt);
+                return 0;
         }
 
         /* Parse configuration file */
