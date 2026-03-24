@@ -4080,7 +4080,7 @@ static int parse_argv(int argc, char *argv[]) {
                                 if (!valid_user_group_name(word, 0))
                                         return log_error_errno(SYNTHETIC_ERRNO(EINVAL), "Invalid group name %s.", word);
 
-                                mo = sd_json_variant_ref(sd_json_variant_by_key(arg_identity_extra, "memberOf"));
+                                mo = sd_json_variant_ref(sd_json_variant_by_key(*(match_identity ?: &arg_identity_extra), "memberOf"));
 
                                 r = sd_json_variant_strv(mo, &list);
                                 if (r < 0)

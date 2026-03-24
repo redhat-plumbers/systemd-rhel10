@@ -82,6 +82,29 @@ inspect test-user
 SYSTEMD_LOG_LEVEL=debug PASSWORD=yPN4N0fYNKUkOq NEWPASSWORD=xEhErW0ndafV4s homectl passwd test-user
 inspect test-user
 
+# --member-of=
+systemd-sysusers --inline "g test-group1" "g test-group2"
+# Single group
+PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of="test-group1"
+[[ "$(homectl inspect -j test-user | jq -c .memberOf)" == '["test-group1"]' ]]
+# Multiple groups
+PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of="test-group1,test-group2"
+[[ "$(homectl inspect -j test-user | jq -c .memberOf)" == '["test-group1","test-group2"]' ]]
+# Empty argument
+PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of=
+[[ "$(homectl inspect -j test-user | jq -c .memberOf)" == 'null' ]]
+# Argument shenanigans
+#   - only separators
+(! PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of=",,,,,,,,,,,,,,,,,,")
+#   - invalid group
+(! PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of="test-group1,inv@lid.group?")
+#   - separators & valid groups
+PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of=",,,,,test-group1,,,,,,,,,,,,,,test-group2,"
+[[ "$(homectl inspect -j test-user | jq -c .memberOf)" == '["test-group1","test-group2"]' ]]
+#   - duplicate groups
+PASSWORD=xEhErW0ndafV4s homectl update test-user --member-of="test-group2,test-group1,test-group1,test-group2"
+[[ "$(homectl inspect -j test-user | jq -c .memberOf)" == '["test-group1","test-group2"]' ]]
+
 homectl deactivate test-user
 inspect test-user
 
