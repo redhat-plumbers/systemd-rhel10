@@ -44,6 +44,7 @@ wrap=(
     dbus-broker-launch
     dbus-daemon
     delv
+    dfuzzer
     dhcpd
     dig
     dnf
@@ -55,17 +56,21 @@ wrap=(
     getfacl
     id
     integritysetup
+    iscsiadm
     iscsid
     kpartx
     logger
     login
     ls
     lsblk
+    lsns
     lvm
     mdadm
     mkfs.btrfs
+    mkfs.ext4
     mksquashfs
     mount
+    mountpoint
     multipath
     multipathd
     nvme
@@ -77,8 +82,12 @@ wrap=(
     sshd
     stat
     su
+    swapoff
+    swapon
     tar
     tgtd
+    # The tpm2 tools (tpm2_readpublic, tpm2_pcrextend, ...) all are symlinks to tpm2
+    tpm2
     umount
     useradd
     userdel
