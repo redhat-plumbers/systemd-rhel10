@@ -44,7 +44,14 @@ jobs:
         languages: ${{ matrix.language }}
         config-file: ./.github/codeql-config.yml
 
-    - run: sudo -E .github/workflows/unit_tests.sh SETUP
+    - run: |
+        sudo -E .github/workflows/unit_tests.sh SETUP
+        # TODO: drop after we switch to ubuntu 26.04
+        bpftool_binary=$(find /usr/lib/linux-tools/ /usr/lib/linux-tools-* -name 'bpftool' -perm /u=x 2>/dev/null | sort -r | head -n1)
+        if [ -n "$bpftool_binary" ]; then
+          sudo rm -f /usr/{bin,sbin}/bpftool
+          sudo ln -s "$bpftool_binary" /usr/bin/
+        fi
 
     - name: Autobuild
       uses: github/codeql-action/autobuild@f09c1c0a94de965c15400f5634aa42fac8fb8f88
