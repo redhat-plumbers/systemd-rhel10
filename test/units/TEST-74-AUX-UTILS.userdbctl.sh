@@ -19,10 +19,14 @@ u test-74-userdbctl - "Test user for TEST-74-AUX-UTILS.userdbctl.sh" / /bin/bash
 EOF
 
 # Make sure that -F shows same data as if we'd ask directly
-userdbctl user root -j | userdbctl -F- user  | cmp - <(userdbctl user root)
-userdbctl user test-74-userdbctl -j | userdbctl -F- user  | cmp - <(userdbctl user test-74-userdbctl)
-userdbctl user 65534 -j | userdbctl -F- user  | cmp - <(userdbctl user 65534)
+userdbctl user root -j | userdbctl -F- user | cmp - <(userdbctl user root)
+userdbctl user test-74-userdbctl -j | userdbctl -F- user | cmp - <(userdbctl user test-74-userdbctl)
+userdbctl user 65534 -j | userdbctl -F- user | cmp - <(userdbctl user 65534)
 
 userdbctl group root -j | userdbctl -F- group  | cmp - <(userdbctl group root)
 userdbctl group test-74-userdbctl -j | userdbctl -F- group  | cmp - <(userdbctl group test-74-userdbctl)
 userdbctl group 65534 -j | userdbctl -F- group  | cmp - <(userdbctl group 65534)
+
+# Probe specific user records
+echo '{"userName":"weightmin","cpuWeight":1,"ioWeight":1}' | userdbctl -F -
+echo '{"userName":"weightmax","cpuWeight":10000,"ioWeight":10000}' | userdbctl -F -
