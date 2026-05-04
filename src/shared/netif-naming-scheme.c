@@ -45,6 +45,7 @@ static const NamingScheme naming_schemes[] = {
         { "rhel-9.6", NAMING_RHEL_9_6 },
         { "rhel-9.7", NAMING_RHEL_9_7 },
         { "rhel-9.8", NAMING_RHEL_9_8 },
+        { "rhel-9.9", NAMING_RHEL_9_9 },
         { "rhel-10.0-beta", NAMING_RHEL_10_0_BETA },
         { "rhel-10.0", NAMING_RHEL_10_0 },
         { "rhel-10.1", NAMING_RHEL_10_1 },
