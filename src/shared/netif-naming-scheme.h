@@ -93,6 +93,7 @@ typedef enum NamingSchemeFlags {
         NAMING_RHEL_10_0 = NAMING_V257,
         NAMING_RHEL_10_1 = NAMING_RHEL_10_0,
         NAMING_RHEL_10_2 = NAMING_RHEL_10_0,
+        NAMING_RHEL_10_3 = NAMING_RHEL_10_0,
 
         EXTRA_NET_NAMING_SCHEMES
 
