@@ -54,7 +54,7 @@ jobs:
         fi
 
     - name: Autobuild
-      uses: github/codeql-action/autobuild@f09c1c0a94de965c15400f5634aa42fac8fb8f88
+      uses: github/codeql-action/autobuild@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@f09c1c0a94de965c15400f5634aa42fac8fb8f88
