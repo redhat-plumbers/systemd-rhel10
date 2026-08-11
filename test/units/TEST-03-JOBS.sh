@@ -126,6 +126,7 @@ done
 IDS_FILE="/tmp/TEST-03-JOBS-CYCLE-IDS-$RANDOM"
 busctl get-property org.freedesktop.systemd1 /org/freedesktop/systemd1 org.freedesktop.systemd1.Manager TransactionsWithOrderingCycle | cut -d' ' -f3- | xargs -n1 >"$IDS_FILE"
 [[ "$(wc -l < "$IDS_FILE")" -ge 20 ]]
+journalctl --sync
 while read -r ID; do
     journalctl -b TRANSACTION_ID="$ID" --grep "cycle starting with"
 done < "$IDS_FILE"
