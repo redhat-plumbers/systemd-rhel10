@@ -325,6 +325,34 @@ class SysvGeneratorTest(unittest.TestCase):
         err, results = self.run_generator()
         self.assertEqual(results, {})
 
+    def test_executable_binary(self):
+        '''ignores executable binaries, including symlinks to them'''
+
+        binary = self.add_sysv('foo', {}, enable=True)
+        shutil.copyfile(sysv_generator, binary)
+        os.symlink('foo', os.path.join(self.init_d_dir, 'bar'))
+        err, results = self.run_generator()
+        self.assertEqual(results, {})
+        self.assertEqual(os.listdir(self.out_dir), [])
+
+    def test_invalid_shebang(self):
+        '''ignores executable files without an interpreter in a shebang'''
+
+        script = self.add_sysv('foo', {'Provides': 'foo alias'}, enable=True)
+        with open(script) as f:
+            f.readline()
+            body = f.read()
+
+        for contents in ['', '#', '#!\n' + body, '#! \t\n' + body, body]:
+            with self.subTest(contents=contents):
+                shutil.rmtree(self.out_dir)
+                os.mkdir(self.out_dir)
+                with open(script, 'w') as f:
+                    f.write(contents)
+                err, results = self.run_generator()
+                self.assertEqual(results, {})
+                self.assertEqual(os.listdir(self.out_dir), [])
+
     def test_sh_suffix(self):
         '''init.d script with .sh suffix'''
 
