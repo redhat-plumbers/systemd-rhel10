@@ -422,6 +422,7 @@ static int handle_dependencies(SysvStub *s, unsigned line, const char *full_text
 }
 
 static int load_sysv(SysvStub *s) {
+        _cleanup_free_ char *interpreter = NULL;
         _cleanup_fclose_ FILE *f = NULL;
         unsigned line = 0;
         int r;
@@ -437,6 +438,16 @@ static int load_sysv(SysvStub *s) {
         bool supports_reload = false;
 
         assert(s);
+
+        r = executable_is_script(s->path, &interpreter);
+        if (r == -ENOENT)
+                return 0;
+        if (r < 0)
+                return log_error_errno(r, "Failed to determine whether %s is a script: %m", s->path);
+        if (r == 0) {
+                log_debug("%s is not a script, skipping.", s->path);
+                return 0;
+        }
 
         f = fopen(s->path, "re");
         if (!f) {
