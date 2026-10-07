@@ -697,6 +697,15 @@
            <xi:include href="version-info.xml" xpointer="rhel-9.9"/>
            </listitem>
         </varlistentry>
+
+        <varlistentry>
+           <term><constant>rhel-9.10</constant></term>
+
+           <listitem><para>Same as naming scheme <constant>rhel-9.9</constant>.</para>
+
+           <xi:include href="version-info.xml" xpointer="rhel-9.10"/>
+           </listitem>
+        </varlistentry>
       </variablelist>
       </refsect2>
 
