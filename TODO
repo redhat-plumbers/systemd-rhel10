@@ -128,6 +128,8 @@ Deprecations and removals:
   trigger"'s waiting logic, since we can then rely on uuid-tagged uevents
 
 Features:
+* sysext: make systemd-{sys,conf}ext-sysroot.service work in the split '/var'
+  configuration.
 
 * our logging tools should look for $DEBUG_INVOCATION and consider equivalent
   to $SYSTEMD_LOG_LEVEL=debug
@@ -1448,9 +1450,6 @@ Features:
     i.e. a Compress=no option in the transfer definitions
 
 * in sd-id128: also parse UUIDs in RFC4122 URN syntax (i.e. chop off urn:uuid: prefix)
-
-* systemd-sysext: optionally, run it in initrd already, before transitioning
-  into host, to open up possibility for services shipped like that.
 
 * introduce /dev/disk/root/* symlinks that allow referencing partitions on the
   disk the rootfs is on in a reasonably secure way. (or maybe: add
