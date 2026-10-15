@@ -1913,8 +1913,8 @@ static bool is_sd_boot(EFI_FILE *root_dir, const char16_t *loader_path) {
                 return false;
 
         _cleanup_free_ PeSectionHeader *section_table = NULL;
-        size_t n_section_table;
-        err = pe_section_table_from_file(handle, &section_table, &n_section_table);
+        size_t n_section_table, size_in_memory;
+        err = pe_section_table_from_file(handle, &section_table, &n_section_table, &size_in_memory);
         if (err != EFI_SUCCESS)
                 return false;
 
@@ -1925,6 +1925,7 @@ static bool is_sd_boot(EFI_FILE *root_dir, const char16_t *loader_path) {
                         section_names,
                         /* profile= */ UINT_MAX,
                         /* validate_base= */ 0,
+                        size_in_memory,
                         &vector);
         if (vector.memory_size != STRLEN(SD_MAGIC))
                 return false;
@@ -2171,8 +2172,8 @@ static void boot_entry_add_type2(
 
         /* Load section table once */
         _cleanup_free_ PeSectionHeader *section_table = NULL;
-        size_t n_section_table;
-        err = pe_section_table_from_file(handle, &section_table, &n_section_table);
+        size_t n_section_table, size_in_memory;
+        err = pe_section_table_from_file(handle, &section_table, &n_section_table, &size_in_memory);
         if (err != EFI_SUCCESS)
                 return;
 
@@ -2184,6 +2185,7 @@ static void boot_entry_add_type2(
                         section_names,
                         /* profile= */ UINT_MAX,
                         /* validate_base= */ 0,
+                        size_in_memory,
                         base_sections);
 
         /* and now iterate through possible profiles, and create a menu item for each profile we find */
@@ -2199,6 +2201,7 @@ static void boot_entry_add_type2(
                                 section_names,
                                 profile,
                                 /* validate_base= */ 0,
+                                size_in_memory,
                                 sections);
                 if (err != EFI_SUCCESS && profile > 0) /* It's fine if there's no .profile for the first
                                                           profile */
@@ -2621,7 +2624,8 @@ static EFI_STATUS image_start(
         if (err == EFI_UNSUPPORTED && entry->type == LOADER_LINUX) {
                 uint32_t compat_address;
 
-                err = pe_kernel_info(loaded_image->ImageBase, &compat_address, /* ret_size_in_memory= */ NULL);
+                err = pe_kernel_info(loaded_image->ImageBase, loaded_image->ImageSize, /* ret_entry_point= */ NULL, &compat_address,
+                                     /* ret_size_in_memory= */ NULL);
                 if (err != EFI_SUCCESS) {
                         if (err != EFI_UNSUPPORTED)
                                 return log_error_status(err, "Error finding kernel compat entry address: %m");
