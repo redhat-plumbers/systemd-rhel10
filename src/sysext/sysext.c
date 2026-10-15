@@ -19,6 +19,7 @@
 #include "capability-util.h"
 #include "chase.h"
 #include "constants.h"
+#include "conf-parser.h"
 #include "devnum-util.h"
 #include "discover-image.h"
 #include "dissect-image.h"
@@ -43,6 +44,7 @@
 #include "parse-util.h"
 #include "path-util.h"
 #include "pretty-print.h"
+#include "proc-cmdline.h"
 #include "process-util.h"
 #include "rm-rf.h"
 #include "selinux-util.h"
@@ -143,6 +145,37 @@ static const struct {
 
 static int parse_mutable_mode(const char *p) {
         return mutable_mode_from_string(p);
+}
+
+static DEFINE_CONFIG_PARSE_ENUM(config_parse_mutable_mode, mutable_mode, MutableMode);
+
+static int parse_config_file(ImageClass image_class) {
+        const char *section = image_class == IMAGE_SYSEXT ? "SysExt" : "ConfExt";
+        const ConfigTableItem items[] = {
+                { section, "Mutable",           config_parse_mutable_mode,      0,      &arg_mutable            },
+                { section, "ImagePolicy",       config_parse_image_policy,      0,      &arg_image_policy       },
+                {}
+        };
+        _cleanup_free_ char *config_file = NULL;
+        int r;
+
+        config_file = strjoin("systemd/", image_class_info[image_class].short_identifier, ".conf");
+        if (!config_file)
+                return log_oom();
+
+        r = config_parse_standard_file_with_dropins_full(
+                        arg_root,
+                        config_file,
+                        image_class == IMAGE_SYSEXT ? "SysExt\0" : "ConfExt\0",
+                        config_item_table_lookup, items,
+                        CONFIG_PARSE_WARN,
+                        /* userdata = */ NULL,
+                        /* ret_stats_by_path = */ NULL,
+                        /* ret_dropin_files = */ NULL);
+        if (r < 0)
+                return r;
+
+        return 0;
 }
 
 static int is_our_mount_point(
@@ -2543,6 +2576,7 @@ static int run(int argc, char *argv[]) {
 
         arg_image_class = invoked_as(argv, "systemd-confext") ? IMAGE_CONFEXT : IMAGE_SYSEXT;
 
+        /* Parse environment variable first */
         env_var = getenv(image_class_info[arg_image_class].mode_env);
         if (env_var) {
                 r = parse_mutable_mode(env_var);
@@ -2553,6 +2587,28 @@ static int run(int argc, char *argv[]) {
                         arg_mutable = r;
         }
 
+        /* PROC_CMDLINE_STRIP_RD_PREFIX cannot be used here as we need to be able to distinguish between
+         * rd.systemd.{sysext,confext} and systemd.{sysext,confext} in the initrd where they are both used
+         * and have different meaning. */
+        const char *string_class = image_class_to_string(arg_image_class);
+        const char *cmdline_opt = strjoina(in_initrd() && !arg_root ? "rd." : "", "systemd.", string_class);
+
+        bool enabled;
+        r = proc_cmdline_get_bool(cmdline_opt, PROC_CMDLINE_TRUE_WHEN_MISSING, &enabled);
+        if (r < 0)
+                log_debug_errno(r, "Failed to check '%s=' kernel command line option, proceeding: %m", cmdline_opt);
+        else if (!enabled && invoked_by_systemd()) {
+                /* Kernel command line option should not affect manual invocation. */
+                log_notice("Disabled by the kernel command line option '%s=', skipping execution.", cmdline_opt);
+                return 0;
+        }
+
+        /* Parse configuration file */
+        r = parse_config_file(arg_image_class);
+        if (r < 0)
+                log_warning_errno(r, "Failed to parse global config file, ignoring: %m");
+
+        /* Parse command line */
         r = parse_argv(argc, argv);
         if (r <= 0)
                 return r;
