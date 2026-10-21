@@ -78,9 +78,10 @@ static bool open_when_needed = false;
 static bool prohibit_ipc = false;
 static bool assert_return_is_critical = BUILD_MODE_DEVELOPER;
 
-/* Akin to glibc's __abort_msg; which is private and we hence cannot
- * use here. */
-static char *log_abort_msg = NULL;
+/* Akin to glibc's __abort_msg; which is private and we hence cannot use here. If an abort happened, this
+ * will contain a pointer to the formatted error message. Debuggers, core dump analyzers, and post-mortem
+ * analysis tools can extract the cause of a crash from the program core dump. */
+static char _used_ _unused_ *log_abort_msg = NULL;
 
 typedef struct LogContext {
         unsigned n_ref;
