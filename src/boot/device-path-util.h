@@ -11,6 +11,9 @@ EFI_DEVICE_PATH *device_path_replace_node(
 
 static inline EFI_DEVICE_PATH *device_path_next_node(const EFI_DEVICE_PATH *dp) {
         assert(dp);
+        /* The node Length includes the 4-byte header, so a well-formed node is at least that long. Paths
+         * coming from untrusted sources must be checked with device_path_is_valid() before being walked. */
+        assert(dp->Length >= sizeof(EFI_DEVICE_PATH));
         return (EFI_DEVICE_PATH *) ((uint8_t *) dp + dp->Length);
 }
 
@@ -25,3 +28,7 @@ static inline bool device_path_is_end(const EFI_DEVICE_PATH *dp) {
                 .SubType = END_ENTIRE_DEVICE_PATH_SUBTYPE, \
                 .Length = sizeof(EFI_DEVICE_PATH)          \
         }
+
+/* Validates that a device path is well-formed and fully contained within the given size, terminated by an
+ * end node. Use on paths from untrusted sources (e.g. EFI variables) before walking them. */
+bool device_path_is_valid(const EFI_DEVICE_PATH *dp, size_t size);
