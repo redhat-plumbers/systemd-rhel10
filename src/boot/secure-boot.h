@@ -24,3 +24,4 @@ typedef bool (*security_validator_t)(
 
 void install_security_override(security_validator_t validator, const void *validator_ctx);
 void uninstall_security_override(void);
+bool security_override_available(void);
