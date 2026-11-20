@@ -22,7 +22,7 @@ static inline int dlopen_idn(void) {
 
 #if HAVE_LIBIDN2
 extern DLSYM_PROTOTYPE(idn2_lookup_u8);
-extern const char *(*sym_idn2_strerror)(int rc) _const_;
+extern DLSYM_PROTOTYPE(idn2_strerror);
 extern DLSYM_PROTOTYPE(idn2_to_unicode_8z8z);
 #endif
 
